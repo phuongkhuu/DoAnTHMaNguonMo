@@ -15,7 +15,24 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
+    $user = auth()->user();
+    if (!$user) {
+        return redirect()->route('login');
+    }
+    switch ($user->role) {
+        case 'admin':
+            return Inertia::render('Admin/Index', [
+                'user' => $user
+            ]);
+        case 'customer':
+            return Inertia::render('Customers/Index', [
+                'user' => $user
+            ]);
+        default:
+            return Inertia::render('Customers/Index', [
+                'user' => $user
+            ]);
+    }
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
