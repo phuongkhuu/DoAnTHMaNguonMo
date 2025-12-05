@@ -16,7 +16,7 @@
             <div class="text-xs text-gray-400">Administrator</div>
           </div>
           <svg class="w-4 h-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-             <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
           </svg>
         </div>
 
@@ -122,9 +122,31 @@
         <div v-if="currentView === 'products'">
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold text-gray-800">DANH SÁCH SẢN PHẨM</h2>
-            <button class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700">
+            <button @click="openForm()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700">
               + Thêm sản phẩm
             </button>
+          </div>
+
+          <div v-if="showForm" class="mb-6 bg-white p-4 rounded-lg shadow-md border-t-4 border-indigo-500">
+            <h3 class="text-xl font-bold mb-4 text-gray-800">{{ form.product_id ? 'CẬP NHẬT SẢN PHẨM' : 'THÊM SẢN PHẨM MỚI' }}</h3>
+            <form @submit.prevent="saveProduct" class="space-y-4">
+              <input v-model="form.product_name" placeholder="Tên sản phẩm" class="border border-gray-300 p-2 w-full rounded focus:ring-indigo-500 focus:border-indigo-500" required />
+              <input v-model="form.category_name" placeholder="Danh mục (Ví dụ: Áo, Quần, Váy)" class="border border-gray-300 p-2 w-full rounded focus:ring-indigo-500 focus:border-indigo-500" required />
+              
+              <div class="grid grid-cols-2 gap-4">
+                  <input v-model.number="form.price" type="number" placeholder="Giá bán (VND)" class="border border-gray-300 p-2 w-full rounded focus:ring-indigo-500 focus:border-indigo-500" min="1000" required />
+                  <input v-model.number="form.stock" type="number" placeholder="Tồn kho" class="border border-gray-300 p-2 w-full rounded focus:ring-indigo-500 focus:border-indigo-500" min="0" required />
+              </div>
+
+              <input v-model="form.image" type="text" placeholder="URL hình ảnh (Tùy chọn)" class="border border-gray-300 p-2 w-full rounded focus:ring-indigo-500 focus:border-indigo-500" />
+
+              <div class="flex space-x-3 pt-2">
+                <button type="submit" class="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition">
+                  {{ form.product_id ? '✅ Cập nhật' : '➕ Thêm sản phẩm' }}
+                </button>
+                <button type="button" @click="closeForm" class="bg-gray-500 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-gray-600 transition">Hủy</button>
+              </div>
+            </form>
           </div>
 
           <div class="bg-white rounded-lg shadow overflow-hidden">
@@ -164,8 +186,8 @@
                     </span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                    <button class="text-indigo-600 hover:text-indigo-900 mr-3">Sửa</button>
-                    <button class="text-red-600 hover:text-red-900">Xóa</button>
+                    <button @click="editProduct(p)" class="text-indigo-600 hover:text-indigo-900 mr-3">Sửa</button>
+                    <button @click="deleteProduct(p.product_id)" class="text-red-600 hover:text-red-900">Xóa</button>
                   </td>
                 </tr>
               </tbody>
@@ -214,21 +236,21 @@
         
         <div v-if="currentView === 'inventory'">
             <h2 class="text-2xl font-bold text-gray-800 mb-6">KHO HÀNG</h2>
-             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                 <div v-for="p in products" :key="p.product_id" class="bg-white p-4 rounded shadow border-l-4" :class="p.stock < 10 ? 'border-red-500' : 'border-green-500'">
-                     <h3 class="font-bold text-gray-800">{{ p.product_name }}</h3>
-                     <div class="mt-2 flex justify-between items-end">
-                         <div>
-                             <p class="text-xs text-gray-500">Giá vốn: {{ formatPrice(p.price * 0.7) }}</p> <p class="text-xs text-gray-500">Giá bán: {{ formatPrice(p.price) }}</p>
-                         </div>
-                         <div class="text-right">
-                             <p class="text-2xl font-bold" :class="p.stock < 10 ? 'text-red-600' : 'text-gray-800'">{{ p.stock }}</p>
-                             <p class="text-xs text-gray-500">Tồn kho</p>
-                         </div>
-                     </div>
-                 </div>
-             </div>
-         </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div v-for="p in products" :key="p.product_id" class="bg-white p-4 rounded shadow border-l-4" :class="p.stock < 10 ? 'border-red-500' : 'border-green-500'">
+                      <h3 class="font-bold text-gray-800">{{ p.product_name }}</h3>
+                      <div class="mt-2 flex justify-between items-end">
+                          <div>
+                              <p class="text-xs text-gray-500">Giá vốn: {{ formatPrice(p.price * 0.7) }}</p> <p class="text-xs text-gray-500">Giá bán: {{ formatPrice(p.price) }}</p>
+                          </div>
+                          <div class="text-right">
+                              <p class="text-2xl font-bold" :class="p.stock < 10 ? 'text-red-600' : 'text-gray-800'">{{ p.stock }}</p>
+                              <p class="text-xs text-gray-500">Tồn kho</p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
 
       </main>
     </div>
@@ -236,7 +258,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, reactive } from 'vue'; // Đã BỔ SUNG 'reactive'
 import { Link, usePage } from '@inertiajs/vue3'; // Import Inertia tools
 
 // --- State Variables ---
@@ -244,12 +266,22 @@ const currentView = ref('home');
 const showMenu = ref(false);
 
 // *** USER LOGIC ***
-// Get user from Laravel Inertia global props
 const page = usePage();
-// We use a fallback OR check so the code doesn't crash if you are testing without a backend login
 const user = computed(() => page.props.auth?.user || { name: 'Admin User' });
 
-// ... (Rest of your data logic remains the same) ...
+// --- CRUD STATE (BỔ SUNG) ---
+const showForm = ref(false); // Điều khiển hiển thị Form Thêm/Sửa
+// Đối tượng form để binding dữ liệu
+const form = reactive({
+    product_id: null,
+    product_name: '',
+    category_name: '',
+    price: 0,
+    stock: 0,
+    image: null,
+});
+
+// --- DATA & STATS ---
 
 const stats = ref({
     revenue: 0,
@@ -261,34 +293,113 @@ const stats = ref({
 const products = ref([]);
 const orders = ref([]);
 
+
+// --- STATS UPDATE ---
+// Hàm tính toán lại các chỉ số thống kê
+const updateStats = () => {
+    const totalProducts = products.value.length;
+    const lowStock = products.value.filter(p => p.stock < 10).length;
+    const completedRevenue = orders.value
+        .filter(o => o.status === 'completed')
+        .reduce((sum, order) => sum + order.total_price, 0);
+    const pendingOrders = orders.value.filter(o => o.status === 'pending').length;
+
+    stats.value = {
+        revenue: completedRevenue,
+        pendingOrders: pendingOrders,
+        totalProducts: totalProducts,
+        lowStock: lowStock
+    };
+};
+
+// --- CORE CRUD FUNCTIONS ---
+
+const openForm = () => {
+    // Reset form để thêm mới
+    Object.assign(form, {
+        product_id: null,
+        product_name: '',
+        category_name: '',
+        price: 0,
+        stock: 0,
+        image: null,
+    });
+    showForm.value = true;
+};
+
+const closeForm = () => {
+    showForm.value = false;
+};
+
+const editProduct = (product) => {
+    // Nạp dữ liệu sản phẩm vào form để chỉnh sửa
+    Object.assign(form, product);
+    showForm.value = true;
+};
+
+const saveProduct = () => {
+    if (!form.product_name || form.price <= 0 || form.stock < 0) {
+        alert("Vui lòng nhập đầy đủ Tên sản phẩm, Giá (> 0) và Tồn kho (>= 0).");
+        return;
+    }
+
+    if (form.product_id) {
+        // Cập nhật (Update)
+        const index = products.value.findIndex(p => p.product_id === form.product_id);
+        if (index !== -1) {
+            products.value[index] = { ...form };
+        }
+    } else {
+        // Thêm mới (Create)
+        const newId = Math.max(0, ...products.value.map(p => p.product_id)) + 1;
+        const newProduct = {
+            ...form,
+            product_id: newId,
+        };
+        products.value.push(newProduct);
+    }
+
+    closeForm();
+    updateStats(); // Cập nhật lại thống kê sau khi thay đổi
+    alert(`Đã ${form.product_id ? 'Cập nhật' : 'Thêm mới'} sản phẩm thành công.`);
+};
+
+const deleteProduct = (id) => {
+    if (confirm(`Bạn có chắc chắn muốn XÓA sản phẩm ID ${id} này không?`)) {
+        products.value = products.value.filter(p => p.product_id !== id);
+        updateStats(); // Cập nhật lại thống kê sau khi thay đổi
+        alert(`Đã Xóa sản phẩm ID: ${id}`);
+    }
+};
+
 // --- MOCK DATA FETCHING ---
 const fetchData = async () => {
     try {
         console.log("Loading mock data...");
         // 1. Mock Products
         products.value = [
-            { 
-                product_id: 1, 
-                product_name: 'Áo Thun Basic', 
+            {
+                product_id: 1,
+                product_name: 'Áo Thun Basic',
                 category_name: 'Áo',
-                price: 150000, 
-                stock: 50, 
+                price: 150000,
+                stock: 50,
                 image: null
             },
-            { 
-                product_id: 2, 
-                product_name: 'Quần Jean Slimfit', 
+            {
+                product_id: 2,
+                product_name: 'Quần Jean Slimfit',
                 category_name: 'Quần',
-                price: 450000, 
-                stock: 5, 
+                price: 450000,
+                stock: 5,
                 image: null
             },
-             { 
-                product_id: 3, 
-                product_name: 'Váy Hoa Nhí', 
+            {
+                product_id: 3,
+                product_name: 'Váy Hoa Nhí',
                 category_name: 'Váy',
-                price: 320000, 
-                stock: 12, 
+                price: 320000,
+                stock: 12,
                 image: null
             }
         ];
@@ -321,13 +432,8 @@ const fetchData = async () => {
             }
         ];
 
-        // 3. Mock Stats
-        stats.value = {
-            revenue: 1250000,
-            pendingOrders: 1,
-            totalProducts: 3,
-            lowStock: 1 
-        };
+        // 3. Mock Stats: Gọi hàm updateStats để tính toán động
+        updateStats();
 
     } catch (error) {
         console.error("Error loading data:", error);

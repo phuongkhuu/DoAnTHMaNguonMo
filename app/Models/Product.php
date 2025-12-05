@@ -15,6 +15,7 @@ class Product extends Model
     // Khóa chính
     protected $primaryKey = 'product_id';
 
+    // Các cột cho phép mass assignment
     protected $fillable = [
         'category_id',
         'product_name',
@@ -26,4 +27,10 @@ class Product extends Model
     ];
 
     public $timestamps = true;
+
+    // Quan hệ với Category
+    public function category()
+    {
+        return $this->belongsTo(Category::class, 'category_id', 'category_id');
+    }
 }
