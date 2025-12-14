@@ -36,7 +36,7 @@
                   <button class="qty-btn" @click="changeQty(item, item.quantity + 1)">+</button>
                 </div>
 
-                <div class="line-total">{{ formatPrice((item.price || 0) * (item.quantity || 0)) }}</div>
+                <div class="line-total">{{ formatPrice(item.price) }}</div>
 
                 <div class="row-actions">
                   <button class="btn-link" @click="removeItem(item)">Xóa</button>
@@ -47,21 +47,25 @@
 
           <aside class="cart-summary">
             <h2>Tóm tắt đơn hàng</h2>
+
             <div class="summary-row">
               <span>Số lượng</span>
-              <span>{{ totalQuantity }}</span>
+              <span>{{ totalQuantityValue }}</span>
             </div>
+
             <div class="summary-row">
               <span>Tạm tính</span>
-              <span class="summary-price">{{ formatPrice(cartSubtotal) }}</span>
+              <span class="summary-price">{{ formatPrice(cartSubtotalValue) }}</span>
             </div>
+
             <div class="summary-row">
               <span>Phí vận chuyển</span>
               <span class="muted">Tính khi thanh toán</span>
             </div>
+
             <div class="summary-row total">
               <span>Tổng</span>
-              <span class="summary-price">{{ formatPrice(cartSubtotal) }}</span>
+              <span class="summary-price">{{ formatPrice(cartSubtotalValue) }}</span>
             </div>
 
             <div class="summary-actions">
@@ -84,17 +88,25 @@
     <div v-if="showQr" class="qr-modal" @click.self="closeQr">
       <div class="qr-card">
         <h3>Quét mã MoMo để thanh toán</h3>
-        <p class="qr-sub">Số: <strong>{{ momoReceiver }}</strong> · Số tiền: <strong>{{ formatPrice(qrAmount || cartSubtotal) }}</strong></p>
+
+        <p class="qr-sub">
+          Số: <strong>{{ momoReceiver }}</strong> ·
+          Số tiền:
+          <strong>{{ formatPrice(qrAmount || cartSubtotalValue) }}</strong>
+        </p>
+
         <img v-if="qrImage" :src="qrImage" alt="MoMo QR" class="qr-img" />
         <p v-else class="qr-help">Đang tạo mã…</p>
+
         <p class="qr-help">Mở ứng dụng MoMo → Quét mã → Xác nhận chuyển tiền</p>
 
         <div class="qr-actions">
           <button class="btn-primary" @click="copyMomoUri">Sao chép liên kết</button>
           <button class="btn-secondary" @click="closeQr">Đóng</button>
         </div>
+
         <div class="qr-actions">
-            <button class="btn-primary" @click="confirmPayment">Xác nhận</button>
+          <button class="btn-primary" @click="confirmPayment">Xác nhận</button>
         </div>
       </div>
     </div>
@@ -113,32 +125,46 @@ export default {
       loading: true,
       placeholderImage: '/image/placeholder.png',
       receiptId: null,
+
+      // Totals that DO NOT auto-update
+      cartSubtotalValue: 0,
+      totalQuantityValue: 0,
+
       // QR related
       qrImage: null,
       showQr: false,
-      momoReceiver: '0907139274', 
+      momoReceiver: '0907139274',
       momoUri: null,
       qrAmount: null,
       note: '',
     };
   },
+
   computed: {
     user() {
-      return (this.$page && this.$page.props && this.$page.props.auth && this.$page.props.auth.user)
+      return (this.$page && this.$page.props?.auth?.user)
         ? this.$page.props.auth.user
         : null;
-    },
-    cartSubtotal() {
-      return this.cartData.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0);
-    },
-    totalQuantity() {
-      return this.cartData.reduce((sum, it) => sum + (it.quantity || 0), 0);
     }
   },
+
   methods: {
     formatPrice(value) {
       if (typeof value !== 'number') return value;
       return value.toLocaleString('vi-VN') + '₫';
+    },
+
+    // ✅ Recalculate totals ONLY when fetching cart (page reload)
+    updateTotals() {
+      this.cartSubtotalValue = this.cartData.reduce(
+        (sum, it) => sum + (it.price || 0) * (it.quantity || 0),
+        0
+      );
+
+      this.totalQuantityValue = this.cartData.reduce(
+        (sum, it) => sum + (it.quantity || 0),
+        0
+      );
     },
 
     async fetchCart() {
@@ -147,8 +173,10 @@ export default {
         return;
       }
       this.loading = true;
+
       try {
         const res = await axios.get('/receipts/active');
+
         if (res.data) {
           this.receiptId = res.data.id;
           this.cartData = (res.data.items || []).map(i => ({
@@ -159,6 +187,10 @@ export default {
         } else {
           this.cartData = [];
         }
+
+        // ✅ Only update totals here
+        //this.updateTotals();
+
       } catch (err) {
         console.error('fetchCart error', err);
         if (err.response?.status === 401) {
@@ -176,10 +208,12 @@ export default {
         window.location.href = '/login';
         return;
       }
+
       newQty = Math.max(1, parseInt(newQty || 1, 10));
+
       try {
         await axios.put(`/user/cart/${item.id}`, { quantity: newQty });
-        await this.fetchCart();
+        await this.fetchCart(); // ✅ totals update ONLY here
       } catch (err) {
         console.error('changeQty error', err);
         if (err.response?.status === 401) {
@@ -205,9 +239,10 @@ export default {
         return;
       }
       if (!confirm('Bạn có chắc muốn xóa sản phẩm này khỏi giỏ hàng?')) return;
+
       try {
         await axios.delete(`/user/cart/${item.id}`);
-        await this.fetchCart();
+        await this.fetchCart(); // ✅ totals update ONLY here
       } catch (err) {
         console.error('removeItem error', err);
         if (err.response?.status === 401) {
@@ -216,35 +251,31 @@ export default {
         }
       }
     },
+
     async goToCheckout() {
       if (!this.receiptId) {
         alert('Không tìm thấy hóa đơn để thanh toán');
         return;
       }
 
-      // Validate subtotal
-      const subtotal = Math.max(0, Math.round(this.cartSubtotal));
+      const subtotal = Math.max(0, Math.round(this.cartSubtotalValue));
       if (subtotal <= 0) {
         alert('Giỏ hàng trống hoặc tổng tiền không hợp lệ');
         return;
       }
 
-      // Try to get momoUri from backend (preferred)
       try {
         const res = await axios.post('/receipts/checkout-momo', { receipt_id: this.receiptId });
-        if (res.data && res.data.momoUri) {
+        if (res.data?.momoUri) {
           this.momoUri = res.data.momoUri;
           this.qrAmount = res.data.amount ?? subtotal;
-          // If backend returned receiver, update display
+
           try {
             const params = new URLSearchParams(this.momoUri.split('?')[1] || '');
             const r = params.get('receiver');
             if (r) this.momoReceiver = r;
-          } catch (e) {
-            // ignore parsing errors
-          }
+          } catch {}
         } else {
-          // fallback: build local momoUri using subtotal and configured receiver
           this.momoUri = this.buildLocalMomoUri(subtotal);
           this.qrAmount = subtotal;
         }
@@ -254,13 +285,11 @@ export default {
         this.qrAmount = subtotal;
       }
 
-      // Validate momoUri
       if (!this.momoUri) {
         alert('Không thể tạo liên kết thanh toán MoMo');
         return;
       }
 
-      // Generate QR
       try {
         this.qrImage = await QRCode.toDataURL(this.momoUri, {
           width: 320,
@@ -268,31 +297,32 @@ export default {
           errorCorrectionLevel: 'M',
         });
         this.showQr = true;
-        this.note = `Quét mã bằng ứng dụng MoMo để chuyển ${this.formatPrice(this.qrAmount)} vào số ${this.momoReceiver}. Người gửi cần xác nhận giao dịch trong app.`;
+        this.note = `Quét mã bằng ứng dụng MoMo để chuyển ${this.formatPrice(this.qrAmount)} vào số ${this.momoReceiver}.`;
       } catch (err) {
         console.error('QR generation error', err);
         alert('Không thể tạo mã QR. Vui lòng thử lại.');
       }
     },
+
     async confirmPayment() {
-        if (!this.receiptId) {
-          alert('Không tìm thấy hóa đơn để thanh toán');
-          return;
-        }
-        try {
-          await axios.post('/receipts/checkout', { receipt_id: this.receiptId });
-          this.closeQr();
-          await this.fetchCart();
-          alert('Đã xác nhận thanh toán và tạo hóa đơn mới');
-        } catch (err) {
-          console.error('checkout error', err);
-          alert('Thanh toán thất bại');
-        }
-      },
+      if (!this.receiptId) {
+        alert('Không tìm thấy hóa đơn để thanh toán');
+        return;
+      }
+      try {
+        await axios.post('/receipts/checkout', { receipt_id: this.receiptId });
+        this.closeQr();
+        await this.fetchCart();
+        alert('Đã xác nhận thanh toán và tạo hóa đơn mới');
+      } catch (err) {
+        console.error('checkout error', err);
+        alert('Thanh toán thất bại');
+      }
+    },
+
     buildLocalMomoUri(amount) {
-      // Validate receiver
       if (!/^\d{9,11}$/.test(this.momoReceiver)) {
-        alert('Số điện thoại MoMo không hợp lệ. Vui lòng kiểm tra cấu hình.');
+        alert('Số điện thoại MoMo không hợp lệ.');
         return null;
       }
       const comment = `Thanh toán hóa đơn #${this.receiptId}`;
@@ -318,19 +348,18 @@ export default {
         alert('Không có liên kết để sao chép');
         return;
       }
-      navigator.clipboard?.writeText(this.momoUri).then(() => {
-        alert('Đã sao chép liên kết MoMo vào clipboard');
-      }).catch(() => {
-        alert('Không thể sao chép. Vui lòng sao chép thủ công: ' + this.momoUri);
-      });
+      navigator.clipboard?.writeText(this.momoUri)
+        .then(() => alert('Đã sao chép liên kết MoMo'))
+        .catch(() => alert('Không thể sao chép.'));
     },
 
     onImageError(event) {
       event.target.src = this.placeholderImage;
     }
   },
+
   mounted() {
-    this.fetchCart();
+    this.fetchCart(); // ✅ totals update ONLY here
   }
 };
 </script>
@@ -347,7 +376,7 @@ export default {
 }
 .cart-header h1 {
   margin: 0 0 6px 0;
-  color: #e75480;
+  color: #1e90ff;
 }
 .subtitle { color: #666; margin: 0 0 12px 0; }
 
@@ -383,7 +412,7 @@ export default {
 .qty-btn { width:34px; height:34px; border-radius:6px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:18px; }
 .qty-input { width:56px; text-align:center; padding:6px; border-radius:6px; border:1px solid #ddd; }
 
-.line-total { font-weight:700; color:#e75480; min-width:120px; text-align:right; }
+.line-total { font-weight:700; color:#1e90ff; min-width:120px; text-align:right; }
 .row-actions .btn-link { background:transparent; border:none; color:#999; cursor:pointer; text-decoration:underline; }
 
 /* Summary */
@@ -393,11 +422,11 @@ export default {
 .cart-summary h2 { margin:0 0 12px 0; color:#333; }
 .summary-row { display:flex; justify-content:space-between; padding:8px 0; color:#444; }
 .summary-row.total { font-size:18px; font-weight:800; margin-top:8px; border-top:1px dashed #eee; padding-top:12px; }
-.summary-price { color:#e75480; font-weight:700; }
+.summary-price { color:#1e90ff; font-weight:700; }
 
 .summary-actions { margin-top:14px; display:flex; flex-direction:column; gap:10px; }
 .btn-primary {
-  display:inline-block; text-align:center; padding:12px 14px; background:#e75480; color:#fff; border-radius:8px; text-decoration:none; border:none; cursor:pointer;
+  display:inline-block; text-align:center; padding:12px 14px; background:#1e90ff; color:#fff; border-radius:8px; text-decoration:none; border:none; cursor:pointer;
 }
 .btn-primary.full { width:100%; }
 .btn-secondary { display:inline-block; text-align:center; padding:10px 12px; background:#fff; color:#333; border-radius:8px; border:1px solid #ddd; text-decoration:none; }
@@ -431,7 +460,7 @@ export default {
 .qr-img { width: 260px; height: 260px; object-fit: contain; margin: 8px auto; background: #fff; padding: 8px; border-radius: 8px; }
 .qr-help { color: #666; font-size: 13px; margin-top: 8px; }
 .qr-actions { display:flex; gap:10px; justify-content:center; margin-top:12px; }
-.qr-actions .btn-primary { padding: 10px 12px; }
+.qr-actions .btn-primary { padding: 10px 12px; background:#1e90ff; }
 .qr-actions .btn-secondary { padding: 10px 12px; }
 
 /* Responsive */
@@ -442,3 +471,4 @@ export default {
   .qr-img { width: 220px; height: 220px; }
 }
 </style>
+

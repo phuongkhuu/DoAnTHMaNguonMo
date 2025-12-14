@@ -49,7 +49,6 @@ Route::middleware(['auth','verified'])->group(function () {
     Route::put('products/{product}', [ProductController::class,'update']);
     Route::delete('products/{product}', [ProductController::class,'destroy']);
     Route::get('/reviews', [ProductReviewController::class, 'all']);
-    Route::delete('reviews/{review}', [ProductReviewController::class, 'destroy']);
 });
 Route::get('products/{product}/reviews', [ProductReviewController::class,'index']);
 Route::middleware('auth')->group(function () {
