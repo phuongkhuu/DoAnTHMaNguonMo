@@ -621,7 +621,6 @@ watch(activeTab, (t) => {
             <p class="muted">Bạn đã đăng nhập! Hãy quản lý sản phẩm, danh mục, bài viết và banner từ trang quản trị.</p>
             <div class="welcome-actions">
               <button class="btn-accent" @click="openProductForm()">Sản phẩm mới</button>
-
             </div>
           </div>
 
@@ -640,7 +639,7 @@ watch(activeTab, (t) => {
 
         <!-- Products tab -->
         <section v-if="activeTab === 'products'" class="card" style="margin-bottom:18px;">
-          <h4 style="margin-bottom:12px; color:var(--blue-500)">Sản phẩm</h4>
+          <h4 style="margin-bottom:12px; color:var(--pink-500)">Sản phẩm</h4>
 
           <div v-if="loading" style="padding:12px;">Đang tải...</div>
 
@@ -678,7 +677,7 @@ watch(activeTab, (t) => {
               <button
                 :disabled="!products.prev_page_url"
                 @click="goToProductPage(products.meta.current_page - 1)"
-                style="padding:8px 14px; border-radius:6px; color: white; background: #1e88e5; border:1px solid #ccc; cursor:pointer; font-size:14px; margin-right:12px;"
+                style="padding:8px 14px; border-radius:6px; color: white; background: #e75480; border:1px solid #ccc; cursor:pointer; font-size:14px; margin-right:12px;"
               >
                 Trước
               </button>
@@ -690,20 +689,28 @@ watch(activeTab, (t) => {
               <button
                 :disabled="!products.next_page_url"
                 @click="goToProductPage(products.meta.current_page + 1)"
-                style="padding:8px 14px; border-radius:6px; color: white; background: #1e88e5; border:1px solid #ccc; cursor:pointer; font-size:14px; margin-left:12px;"
+                style="padding:8px 14px; border-radius:6px; color: white; background: #e75480; border:1px solid #ccc; cursor:pointer; font-size:14px; margin-left:12px;"
               >
                 Sau
               </button>
             </div>
         </section>
-
-
+              <!-- Cards grid -->
+              <section class="cards-grid">
+                <div class="card">
+                  <h4>Thông tin website</h4>
+                  <p class="muted">HOA XINH STORE — đồ án sinh viên.</p>
+                  <p class="muted">Địa chỉ: 180 Cao Lỗ, P.4, Q.8, TP.HCM.</p>
+                </div>
+              </section>
+            </div>
+          </div>
     <!-- Product modal -->
 <div v-if="productFormVisible" class="modal" style="position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.45); z-index:70;">
   <div style="background:white;width:1000px;max-width:96%;border-radius:12px;padding:16px;box-shadow:0 20px 50px rgba(0,0,0,0.18);max-height:calc(100vh - 48px);overflow:visible;display:flex;flex-direction:column;">
     <!-- Header -->
     <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
-      <h3 style="margin:0; font-size:18px; color:var(--blue-500);">
+      <h3 style="margin:0; font-size:18px; color:var(--pink-500);">
         {{ editingProduct.id ? 'Sửa sản phẩm' : 'Tạo sản phẩm mới' }}
       </h3>
       <div style="display:flex; gap:8px; align-items:center;">
@@ -768,7 +775,7 @@ watch(activeTab, (t) => {
 
       <!-- Right: preview (sticky inside modal) -->
       <div style="align-self:start; position:sticky; top:20px;">
-        <div style="width:340px; background:linear-gradient(180deg,#fff 0%,var(--blue-100) 100%); border-radius:10px; padding:14px; box-shadow:var(--card-shadow);">
+        <div style="width:340px; background:linear-gradient(180deg,#fff 0%,var(--pink-100) 100%); border-radius:10px; padding:14px; box-shadow:var(--card-shadow);">
           <div style="display:flex; gap:12px; align-items:flex-start;">
             <div style="width:140px; height:140px; border-radius:10px; overflow:hidden; background:#fafafa; display:flex; align-items:center; justify-content:center; border:1px solid #f3e9ee;">
               <img
@@ -781,7 +788,7 @@ watch(activeTab, (t) => {
             </div>
 
             <div style="flex:1; min-width:0;">
-              <div style="font-weight:800; color:var(--blue-500); font-size:16px; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              <div style="font-weight:800; color:var(--pink-500); font-size:16px; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                 {{ editingProduct.name || 'Tên sản phẩm' }}
               </div>
               <div style="font-size:13px; color:#666; margin-top:8px; min-height:40px; overflow:hidden; text-overflow:ellipsis;">
@@ -793,7 +800,7 @@ watch(activeTab, (t) => {
                   {{ new Intl.NumberFormat('vi-VN').format(editingProduct.price || 0) }}₫
                 </div>
               </div>
-              <div v-if="editingProduct.is_best_seller" style="background:linear-gradient(90deg,var(--blue-400),var(--blue-500)); color:white; padding:6px 8px; border-radius:8px; font-size:12px; font-weight:700; display:inline-flex; align-items:center; gap:6px;">
+              <div v-if="editingProduct.is_best_seller" style="background:linear-gradient(90deg,var(--pink-400),var(--pink-500)); color:white; padding:6px 8px; border-radius:8px; font-size:12px; font-weight:700; display:inline-flex; align-items:center; gap:6px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="display:block;">
               <path d="M12 2l2.9 6.1L21 9.2l-5 3.9L17 21l-5-3.2L7 21l1-7.9-5-3.9 6.1-1.1L12 2z" fill="currentColor"/>
             </svg>
@@ -810,15 +817,13 @@ watch(activeTab, (t) => {
         <!-- Actions -->
         <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;">
           <button @click="closeProductForm" style="padding:10px 14px; border-radius:8px; background:#f6f6f6; border:1px solid #eee; cursor:pointer;">Hủy</button>
-          <button @click="saveProduct" style="padding:10px 14px; border-radius:8px; background:linear-gradient(90deg,var(--blue-400),var(--blue-500)); color:white; cursor:pointer;">Lưu</button>
+          <button @click="saveProduct" style="padding:10px 14px; border-radius:8px; background:linear-gradient(90deg,var(--pink-400),var(--pink-500)); color:white; cursor:pointer;">Lưu</button>
         </div>
       </div>
     </div>
   </div>
 </div>
-   
-  </div>
-</div>
+
     <!-- Notification -->
     <div
       v-if="notification.visible"
