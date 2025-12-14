@@ -4,36 +4,43 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Product;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
 
 class ProductController extends Controller
 {
-    protected function saveContentToStorage(string $contents, string $ext): string
+    protected function ensureImageDir()
     {
-        $filename = uniqid() . '.' . $ext;
-        $path = "image/{$filename}";
-
-        Storage::disk('public')->put($path, $contents);
-
-        return "/storage/{$path}";
+        $dir = public_path('image');
+        if (!File::exists($dir)) {
+            File::makeDirectory($dir, 0755, true);
+        }
+        return $dir;
     }
 
-    protected function deleteStorageImageIfExists(?string $imageUrl)
+    protected function saveContentToPublicImage(string $contents, string $ext): string
+    {
+        $this->ensureImageDir();
+        $filename = uniqid() . '.' . $ext;
+        $path = public_path('image/' . $filename);
+        file_put_contents($path, $contents);
+        return '/image/' . $filename; // public URL path
+    }
+
+    protected function deletePublicImageIfExists(?string $imageUrl)
     {
         if (!$imageUrl) return;
-
-        // Expecting '/storage/image/filename.jpg'
+        // Expecting stored value like '/image/filename.ext' or full URL
         $parsed = parse_url($imageUrl);
         $path = $parsed['path'] ?? $imageUrl;
-
-        // remove leading '/storage/'
-        $relative = ltrim(str_replace('/storage/', '', $path), '/');
-
-        if (Storage::disk('public')->exists($relative)) {
-            Storage::disk('public')->delete($relative);
+        // normalize leading slash
+        $path = ltrim($path, '/');
+        $publicPath = public_path($path);
+        if (File::exists($publicPath)) {
+            File::delete($publicPath);
         }
     }
 
@@ -41,11 +48,10 @@ class ProductController extends Controller
     {
         $perPage = (int) $request->get('per_page', 12);
         $query = Product::with('category')->orderBy('created_at', 'desc');
-
+        
         if ($request->has('best_seller')) {
             $query->where('is_best_seller', 1);
         }
-
         if ($request->filled('q')) {
             $q = $request->q;
             $query->where(fn($qb) => $qb->where('name', 'like', "%{$q}%")
@@ -57,9 +63,8 @@ class ProductController extends Controller
             $query->where('category_id', $request->category);
         }
 
-        return response()->json(
-            $query->paginate($perPage)->withQueryString()
-        );
+        $paginated = $query->paginate($perPage)->withQueryString();
+        return response()->json($paginated);
     }
 
     public function store(Request $request)
@@ -84,34 +89,36 @@ class ProductController extends Controller
             }
         }
 
-        // Upload file to storage/app/public/image
+        // handle uploaded file first -> move to public/image
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('image', 'public');
-            $data['image'] = "/storage/{$path}";
+            $file = $request->file('image');
+            $ext = $file->getClientOriginalExtension() ?: 'jpg';
+            $this->ensureImageDir();
+            $filename = uniqid() . '.' . $ext;
+            $file->move(public_path('image'), $filename);
+            $data['image'] = '/image/' . $filename;
         }
-        // Fetch image from URL
+        // if no uploaded file but image_url provided, fetch and store server-side into public/image
         elseif (!empty($data['image_url'])) {
             try {
                 $res = Http::timeout(15)->get($data['image_url']);
                 if (!$res->ok()) {
-                    return response()->json(['message' => 'Không thể tải ảnh từ URL'], 422);
+                    return response()->json(['message' => 'Không thể tải ảnh từ URL (upstream error)'], 422);
                 }
-
                 $contentType = $res->header('Content-Type', '');
                 if (!Str::startsWith($contentType, 'image/')) {
                     return response()->json(['message' => 'URL không trả về ảnh'], 422);
                 }
-
                 $ext = explode('/', $contentType)[1] ?? 'jpg';
-                $data['image'] = $this->saveContentToStorage($res->body(), $ext);
-
+                $data['image'] = $this->saveContentToPublicImage($res->body(), $ext);
             } catch (\Exception $e) {
-                Log::error('Fetch image failed (store): ' . $e->getMessage());
+                Log::error('Fetch image failed (store): ' . $e->getMessage(), ['url' => $data['image_url'] ?? null]);
                 return response()->json(['message' => 'Lỗi khi tải ảnh từ URL'], 422);
             }
         }
 
-        return response()->json(Product::create($data), 201);
+        $product = Product::create($data);
+        return response()->json($product, 201);
     }
 
     public function show(Product $product)
@@ -132,40 +139,43 @@ class ProductController extends Controller
             'image_url' => 'nullable|url',
         ]);
 
-        // regenerate slug
+        // regenerate slug if needed and avoid duplicates
         $data['slug'] = Str::slug($data['name']);
         $base = $data['slug']; $i = 1;
         while (Product::where('slug', $data['slug'])->where('id', '!=', $product->id)->exists()) {
             $data['slug'] = $base . '-' . $i++;
         }
 
-        // Upload new file
+        // handle uploaded file -> move to public/image and delete old if exists
         if ($request->hasFile('image')) {
-            $this->deleteStorageImageIfExists($product->image);
+            // delete old if in public/image
+            $this->deletePublicImageIfExists($product->image);
 
-            $path = $request->file('image')->store('image', 'public');
-            $data['image'] = "/storage/{$path}";
+            $file = $request->file('image');
+            $ext = $file->getClientOriginalExtension() ?: 'jpg';
+            $this->ensureImageDir();
+            $filename = uniqid() . '.' . $ext;
+            $file->move(public_path('image'), $filename);
+            $data['image'] = '/image/' . $filename;
         }
-        // Replace with URL image
+        // if no uploaded file but image_url provided, fetch and store server-side (replace old)
         elseif (!empty($data['image_url'])) {
             try {
                 $res = Http::timeout(15)->get($data['image_url']);
                 if (!$res->ok()) {
-                    return response()->json(['message' => 'Không thể tải ảnh từ URL'], 422);
+                    return response()->json(['message' => 'Không thể tải ảnh từ URL (upstream error)'], 422);
                 }
-
                 $contentType = $res->header('Content-Type', '');
                 if (!Str::startsWith($contentType, 'image/')) {
                     return response()->json(['message' => 'URL không trả về ảnh'], 422);
                 }
-
-                $this->deleteStorageImageIfExists($product->image);
+                // delete old stored file if it exists in public/image
+                $this->deletePublicImageIfExists($product->image);
 
                 $ext = explode('/', $contentType)[1] ?? 'jpg';
-                $data['image'] = $this->saveContentToStorage($res->body(), $ext);
-
+                $data['image'] = $this->saveContentToPublicImage($res->body(), $ext);
             } catch (\Exception $e) {
-                Log::error('Fetch image failed (update): ' . $e->getMessage());
+                Log::error('Fetch image failed (update): ' . $e->getMessage(), ['url' => $data['image_url'] ?? null, 'product_id' => $product->id]);
                 return response()->json(['message' => 'Lỗi khi tải ảnh từ URL'], 422);
             }
         }
@@ -176,9 +186,9 @@ class ProductController extends Controller
 
     public function destroy(Product $product)
     {
-        $this->deleteStorageImageIfExists($product->image);
-        $product->delete();
+        $this->deletePublicImageIfExists($product->image);
 
+        $product->delete();
         return response()->json(['message' => 'deleted']);
     }
 }
