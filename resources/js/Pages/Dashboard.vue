@@ -634,12 +634,10 @@ watch(activeTab, (t) => {
           </div>
 
           <div class="welcome-stats">
-           
             <div class="stat">
               <div class="stat-value">{{ categoryCount }}</div>
               <div class="stat-label">Danh mục</div>
-            </div>
-
+            </div> 
           </div>
         </section>
 
@@ -647,7 +645,6 @@ watch(activeTab, (t) => {
         <div style="display:flex; gap:8px; margin:18px 0;">
           <button :class="['btn-outline', { 'btn-primary': activeTab === 'categories' }]" @click="activeTab = 'categories'">Danh mục</button>
         </div>
-
       
         <!-- Categories tab -->
         <section v-if="activeTab === 'categories'" class="card" style="margin-bottom:18px;">
@@ -711,9 +708,19 @@ watch(activeTab, (t) => {
         </div>
       </div>
     </div>
-   
-  </div>
-</div>
+
+>
+              <!-- Cards grid -->
+              <section class="cards-grid">
+                <div class="card">
+                  <h4>Thông tin website</h4>
+                  <p class="muted">FASHION STYLE STORE</p>
+                  <p class="muted">Địa chỉ: 180 Cao Lỗ, P.4, Q.8, TP.HCM.</p>
+                </div>
+              </section>
+            </div>
+          </div>
+          
     <!-- Notification -->
     <div
       v-if="notification.visible"
