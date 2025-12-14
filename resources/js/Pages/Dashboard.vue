@@ -646,9 +646,7 @@ watch(activeTab, (t) => {
         <div style="display:flex; gap:8px; margin:18px 0;">
           <button :class="['btn-outline', { 'btn-primary': activeTab === 'products' }]" @click="activeTab = 'products'">Sản phẩm</button>
           <button :class="['btn-outline', { 'btn-primary': activeTab === 'categories' }]" @click="activeTab = 'categories'">Danh mục</button>
-          <button :class="['btn-outline', { 'btn-primary': activeTab === 'receipts' }]" @click="activeTab = 'receipts'">Hóa đơn</button>
           <button :class="['btn-outline', { 'btn-primary': activeTab === 'banners' }]" @click="activeTab = 'banners'">Banner</button>
-          <button :class="['btn-outline', { 'btn-primary': activeTab === 'reviews' }]" @click="activeTab = 'reviews'">Đánh giá</button>
         </div>
 
         <!-- Products tab -->
