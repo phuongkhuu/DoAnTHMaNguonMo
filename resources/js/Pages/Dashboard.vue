@@ -100,7 +100,6 @@ watch(() => editingProduct.image, (val) => {
 });
 
 const previewSrc = computed(() => previewUrl.value);
-
 const categories = ref([]);
 const categoryLoading = ref(false);
 const categoryFormVisible = ref(false);
@@ -594,6 +593,16 @@ const productCount = computed(() => products.value.data.length);
 const categoryCount = computed(() => categories.value.length);
 const receiptCount = computed(() => receipts.value.length)
 
+watch(
+  () => editingCategory.sort_order,
+  (value) => {
+    if (value < 0) editingCategory.sort_order = 0
+    if (value >= categoryCount.value) editingCategory.sort_order = categoryCount.value - 1
+  },
+  { flush: 'sync' }
+)
+
+
 onMounted(() => {
   fetchProducts();   
   fetchCategories();
@@ -682,11 +691,16 @@ watch(activeTab, (t) => {
             Tên
             <input v-model="editingCategory.name" style="width:100%; padding:8px; margin-top:6px;" />
           </label>
-
           <label style="display:block;">
-            Thứ tự
-            <input type="number" v-model.number="editingCategory.sort_order" style="width:100%; padding:8px; margin-top:6px;" />
-          </label>
+                Thứ tự
+                <input 
+                  type="number"
+                  v-model.number="editingCategory.sort_order"
+                  :min="0"
+                  :max="categoryCount - 1"
+                  style="width:100%; padding:8px; margin-top:6px;"
+                />
+              </label>
         </div>
 
         <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
