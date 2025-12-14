@@ -1,386 +1,1311 @@
-<script setup>
-import { Head, Link } from '@inertiajs/vue3';
+<template>
+  <div>
+    <!-- Header -->
+    <header class="thanh-bar">
+      <div class="logo"><a href="/">FASHION STYLE STORE</a></div>
+    </header>
 
-defineProps({
-    canLogin: {
-        type: Boolean,
-    },
-    canRegister: {
-        type: Boolean,
-    },
-    laravelVersion: {
-        type: String,
-        required: true,
-    },
-    phpVersion: {
-        type: String,
-        required: true,
-    },
-});
+    <!-- Menu -->
+    <nav class="menu-chinh">
+      <div class="dropdown">
+        <button class="nut-dropdown">☰ Danh mục sản phẩm ▾</button>
+        <div class="noi-dung-dropdown">
+          <a
+            v-for="cat in categories"
+            :key="cat.id"
+            href="#"
+            @click.prevent="openCategory(cat.slug)"
+          >
+            {{ cat.name }}
+          </a>
+        </div>
+      </div>
 
-function handleImageError() {
-    document.getElementById('screenshot-container')?.classList.add('!hidden');
-    document.getElementById('docs-card')?.classList.add('!row-span-1');
-    document.getElementById('docs-card-content')?.classList.add('!flex-row');
-    document.getElementById('background')?.classList.add('!hidden');
-}
+      <a href="#" @click.prevent="setView('home', '')">TRANG CHỦ</a>
+      <a href="#" @click.prevent="setView('shop', '')">CỬA HÀNG</a>
+      <a href="#" @click.prevent="setView('contact', '')">LIÊN HỆ</a>
+      <a href="#" @click.prevent="setView('about', '')">VỀ CHÚNG TÔI</a>
+    </nav>
+
+    <!-- Slideshow -->
+    <div v-if="currentView === 'home'" class="slideshow-container">
+      <div v-for="(slide, index) in slides" :key="index" class="mySlides fade" v-show="currentSlideIndex === index">
+        <img :src="slide" class="banner-img" />
+      </div>
+      <a class="prev" @click="prevSlide">&#10094;</a>
+      <a class="next" @click="nextSlide">&#10095;</a>
+    </div>
+
+    <!-- Home content -->
+    <main>
+      <!-- Best Sellers (home) -->
+      <section v-if="currentView === 'home'" class="best-sellers">
+        <h2>Sản phẩm bán chạy</h2>
+        <div class="list">
+          <div
+            v-for="product in bestSellers"
+            :key="product.id"
+            class="product-card"
+            @click.prevent="openProduct(product.slug, product)"
+            role="button"
+            tabindex="0"
+          >
+            <div class="image-container">
+              <img :src="product.image || placeholderImage" :alt="product.name" />
+              <button class="add-to-cart" @click.stop="addToCart(product)">Thêm Vào Giỏ</button>
+            </div>
+            <h3>{{ product.name }}</h3>
+            <p v-if="product.short_description">{{ product.short_description }}</p>
+            <div class="price">
+              <span v-if="product.original_price" class="original-price">{{ formatPrice(product.original_price) }}</span>
+              <span class="discounted-price">{{ formatPrice(product.price) }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Category view (products grid + back link below grid) -->
+      <section v-if="currentView === 'category'" class="product-list">
+        <h2 class="category-title">Danh mục: {{ categoryName }}</h2>
+
+        <!-- product grid -->
+        <div class="list category-grid">
+          <div
+            v-for="p in categoryProducts"
+            :key="p.id"
+            class="product-card"
+            @click.prevent="openProduct(p.slug, p)"
+            role="button"
+            tabindex="0"
+          >
+            <div class="image-container">
+              <img :src="p.image || placeholderImage" :alt="p.name" />
+              <button class="add-to-cart" @click.stop="addToCart(p)">Thêm Vào Giỏ</button>
+            </div>
+            <h3>{{ p.name }}</h3>
+            <p v-if="p.short_description">{{ p.short_description }}</p>
+            <div class="price">{{ formatPrice(p.price) }}</div>
+          </div>
+        </div>
+
+        <!-- full-width back link placed after the grid -->
+        <div class="back-home">
+          <a href="#" @click.prevent="setView('home', '')" class="btn-back">← Quay về trang chủ</a>
+        </div>
+      </section>
+
+      <!-- Product detail view -->
+      <section v-if="currentView === 'product'" class="product-detail">
+        <div class="detail-card">
+          <div class="detail-media">
+            <img :src="currentProduct?.image || placeholderImage" :alt="currentProduct?.name || 'Sản phẩm'" />
+          </div>
+
+          <div class="detail-info">
+            <h1 class="detail-title">{{ currentProduct?.name || 'Sản phẩm không tồn tại' }}</h1>
+
+            <p class="detail-price" v-if="currentProduct">
+              <span v-if="currentProduct.original_price" class="original-price">{{ formatPrice(currentProduct.original_price) }}</span>
+              <span class="discounted-price">{{ formatPrice(currentProduct.price) }}</span>
+            </p>
+
+            <p class="detail-desc" v-if="currentProduct && currentProduct.description">
+              {{ currentProduct.description }}
+            </p>
+
+            <p v-else class="detail-desc">Mô tả sản phẩm đang được cập nhật.</p>
+
+            <div class="detail-actions">
+              <button class="add-to-cart-large" @click="addToCart(currentProduct)">Thêm vào giỏ</button>
+              <a href="#" class="btn-back" @click.prevent="goBackFromProduct">← Quay lại</a>
+            </div>
+          </div>
+        </div>
+        <!-- 🔽 Reviews at the bottom -->
+        <div class="reviews">
+          <h2>Đánh giá sản phẩm</h2>
+          <!-- Average rating -->
+          <p v-if="productReviews.length">
+            Trung bình: <span class="stars">{{ renderStars(averageRating) }}</span>
+            ({{ productReviews.length }} lượt)
+          </p>
+          <p v-else><span style="font-style: italic ;">Chưa có đánh giá nào</span></p>
+          <!-- Review list -->
+          <ul class="review-list">
+            <li v-for="r in productReviews" :key="r.id" class="review-item">
+              <strong>{{ r.user.name }}</strong> —
+              <span class="stars">{{ renderStars(r.rating) }}</span>
+              <p>{{ r.comment }}</p>
+            </li>
+          </ul>
+
+          <!-- Review form -->
+          <div v-if="user" class="review-form">
+            <h3>Viết đánh giá của bạn</h3>
+            <form @submit.prevent="submitReview">
+                <label>Điểm đánh giá:</label>
+                <div class="star-selector">
+                  <span
+                    v-for="star in 5"
+                    :key="star"
+                    class="star"
+                    :class="{ active: star <= newReview.rating }"
+                    @click="newReview.rating = star"
+                  >
+                    ★
+                  </span>
+                </div>
+
+                <label>Bình luận:</label>
+                <textarea v-model="newReview.comment"></textarea>
+                <button type="submit">Gửi</button>
+              </form>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- Shop view (inline list) -->
+      <section v-if="currentView === 'shop'" class="product-list">
+        <h2 class="category-title">Cửa hàng</h2>
+        <div class="list">
+          <div
+            v-for="p in allProducts"
+            :key="p.id"
+            class="product-card"
+            @click.prevent="openProduct(p.slug, p)"
+            role="button"
+            tabindex="0"
+          >
+            <div class="image-container">
+              <img :src="p.image || placeholderImage" :alt="p.name" />
+              <button class="add-to-cart" @click.stop="addToCart(p)">Thêm Vào Giỏ</button>
+            </div>
+            <h3>{{ p.name }}</h3>
+            <p v-if="p.short_description">{{ p.short_description }}</p>
+            <div class="price">{{ formatPrice(p.price) }}</div>
+          </div>
+        </div>
+
+        <!-- pagination controls for shop (if using paginator) -->
+        <div v-if="productsPaginator.meta" class="pagination">
+          <button
+            class="page-btn"
+            :disabled="!productsPaginator.prev_page_url"
+            @click="goToProductPage(productsPaginator.meta.current_page - 1)"
+          >
+            Trước
+          </button>
+
+          <span class="page-info">Trang {{ productsPaginator.meta.current_page }} / {{ productsPaginator.meta.last_page }}</span>
+
+          <button
+            class="page-btn"
+            :disabled="!productsPaginator.next_page_url"
+            @click="goToProductPage(productsPaginator.meta.current_page + 1)"
+          >
+            Sau
+          </button>
+        </div>
+      </section>
+      <!-- Contact view -->
+      <section v-if="currentView === 'contact'" class="contact">
+        <h2>Liên hệ chúng tôi</h2>
+        <form class="contact-form">
+          <label for="name">Họ và tên:</label>
+          <input type="text" id="name" placeholder="Nhập họ tên của bạn" required>
+
+          <label for="email">Email:</label>
+          <input type="email" id="email" placeholder="Nhập email của bạn" required>
+
+          <label for="phone">Số điện thoại:</label>
+          <input type="text" id="phone" placeholder="+84" required>
+
+          <label for="message">Nội dung:</label>
+          <textarea id="message" placeholder="Nhập nội dung liên hệ" required></textarea>
+
+          <button type="submit">Gửi liên hệ</button>
+        </form>
+      </section>
+      <!-- About view -->
+      <section v-if="currentView === 'about'" class="about">
+          <div class="about-container">
+            <div class="about-image">
+              <img src="/image/about.png" alt="Giới thiệu về chúng tôi">
+              <img src="/image/vechungtoi.png" alt="Giới thiệu về chúng tôi">
+            </div>
+            <div class="about-text">
+              <h2>FASHION STYLE STORE</h2>
+              <p>
+                Fashion Style Store là cửa hàng chuyên cung cấp quần áo thời trang chất lượng, mang đến những sản phẩm hiện đại, phong cách và phù hợp với xu hướng. Chúng tôi không chỉ bán quần áo, mà còn giúp bạn thể hiện cá tính và phong cách riêng của mình.
+              </p>
+
+              <h3>Sứ mệnh của chúng tôi</h3>
+              <p>
+                Chúng tôi cam kết mang đến những sản phẩm thời trang chất lượng cao với mức giá hợp lý, đáp ứng mọi nhu cầu từ trang phục hằng ngày, đi làm, đi chơi cho đến các sự kiện đặc biệt. Thời trang không chỉ là trang phục, mà còn là cách bạn thể hiện bản thân.
+              </p>
+
+              <h3>Những giá trị cốt lõi</h3>
+              <ul>
+                <li><strong>Chất lượng hàng đầu:</strong> Fashion Style Store luôn lựa chọn kỹ lưỡng từng sản phẩm, đảm bảo chất liệu tốt, bền đẹp và thoải mái.</li>
+                <li><strong>Dịch vụ tận tâm:</strong> Đội ngũ nhân viên nhiệt tình, chuyên nghiệp luôn sẵn sàng tư vấn để bạn tìm được trang phục phù hợp nhất.</li>
+                <li><strong>Sáng tạo và xu hướng:</strong> Chúng tôi cập nhật liên tục các mẫu thiết kế mới, bắt kịp xu hướng thời trang trong và ngoài nước.</li>
+                <li><strong>Giao hàng nhanh chóng:</strong> Dịch vụ giao hàng tận nơi, đảm bảo sản phẩm đến tay khách hàng nhanh và đúng mô tả.</li>
+              </ul>
+
+              <h3>Cam kết của chúng tôi</h3>
+              <p>
+                Chúng tôi luôn nỗ lực cải thiện chất lượng sản phẩm và dịch vụ, lắng nghe mọi phản hồi để mang đến trải nghiệm mua sắm tốt nhất. Tại Fashion Style Store, mỗi sản phẩm đều được chọn lựa với sự tỉ mỉ và tâm huyết.
+              </p>
+
+              <p>
+                Hãy để Fashion Style Store giúp bạn tự tin hơn mỗi ngày với phong cách thời trang ấn tượng và độc đáo!
+              </p>
+            </div>
+          </div>
+        </section>
+    </main>
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-content">
+        <div class="store-info">
+          <h1 style="color: white; font-size: 30px;"><strong>FASHION STYLE STORE</strong></h1>
+          <p><strong>Địa chỉ:</strong> 180 Cao Lỗ, Phường 4, Quận 8, TP.HCM</p>
+          <p><strong>Email:</strong> dh52201275@student.stu.edu.vn</p>
+          <p><strong>Điện thoại:</strong> (028) 38 505 520</p>
+        </div>
+        <div class="map">
+          <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.9544102884747!2d106.67783209999999!3d10.737997199999999!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f62a90e5dbd%3A0x674d5126513db295!2zVHLGsOG7nW5nIMSQ4bqhaSBo4buNYyBDw7RuZyBuZ2jhu4cgU8OgaSBHw7Ju!5e0!3m2!1svi!2s!4v1746779135460!5m2!1svi!2s" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Notification -->
+    <div v-show="notification.visible" class="notification">{{ notification.message }}</div>
+  </div>
+</template>
+
+<script>
+import axios from 'axios';
+
+axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+axios.defaults.headers.common['Accept'] = 'application/json';
+
+export default {
+  name: "Welcome",
+  data() {
+    return {
+      slides: [],
+      currentSlideIndex: 0,
+
+      notification: {
+          visible: false,
+          message: "",
+          type: "info"
+        },
+      // UI / cart
+      searchQuery: "",
+      cartData: [], // server-driven for authenticated users; local fallback used only for guests
+      cartVisible: false,
+      notification: { visible: false, message: "" },
+
+      // dynamic data
+      bestSellers: [],
+      allProducts: [],
+      categories: [],
+      blogs: [],
+      categoryProducts: [],
+
+      // paginator wrapper for shop products
+      productsPaginator: {
+        data: [],
+        meta: null,
+        prev_page_url: null,
+        next_page_url: null
+      },
+
+      newsletterEmail: "",
+
+      // SPA view state
+      currentView: "home",
+      currentSlug: "",
+
+      // product detail
+      currentProduct: null,
+      placeholderImage: '/image/placeholder.png',
+
+      // 🔥 product reviews
+      productReviews: [],        
+      newReview: {               
+        rating: 5,
+        comment: ""
+      },
+      averageRating: 0           
+    };
+  },
+  computed: {
+    cartTotal() {
+      return this.cartData.reduce(
+        (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
+        0
+      );
+    },
+    totalQuantity() {
+      if (!this.user) return 0;
+      return this.cartData.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    },
+    currentPost() {
+      return this.blogs.find(b => b.slug === this.currentSlug) || null;
+    },
+    user() {
+      return (this.$page &&
+        this.$page.props &&
+        this.$page.props.auth &&
+        this.$page.props.auth.user)
+        ? this.$page.props.auth.user
+        : null;
+    },
+    categoryName() {
+      if (!this.currentSlug) return '';
+      const cat = (this.categories || []).find(c => c.slug === this.currentSlug);
+      return cat ? cat.name : this.currentSlug;
+    },
+
+    // 🔥 Reviews
+    averageRating() {
+      if (!this.productReviews || !this.productReviews.length) return 0;
+      const sum = this.productReviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+      return (sum / this.productReviews.length).toFixed(1);
+    },
+    reviewCount() {
+      return this.productReviews ? this.productReviews.length : 0;
+    },
+    currentReviews() {
+      // if you want to filter reviews by current product slug
+      if (!this.currentProduct) return [];
+      return this.productReviews.filter(r => r.product_id === this.currentProduct.id);
+    }
+  },
+  methods: {
+    renderStars(value) {
+      const full = Math.floor(value)
+      const half = value - full >= 0.5 ? 1 : 0
+      const empty = 5 - full - half
+      return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty)
+    },
+    async fetchReviews(slug) {
+      try {
+        const res = await axios.get(`/products/${slug}/reviews`);
+        this.productReviews = res.data;
+        // update average rating
+        if (this.productReviews.length) {
+          const sum = this.productReviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+          this.averageRating = (sum / this.productReviews.length).toFixed(1);
+        } else {
+          this.averageRating = 0;
+        }
+      } catch (err) {
+        console.error("Failed to fetch reviews", err);
+      }
+    },
+
+    async submitReview() {
+      if (!this.user) {
+        alert("Bạn cần đăng nhập để viết đánh giá.");
+        return;
+      }
+      try {
+        await axios.post(`/products/${this.currentProduct.slug}/reviews`, {
+            product_id: this.currentProduct.id, 
+            rating: this.newReview.rating,
+            comment: this.newReview.comment
+          });
+        await this.fetchReviews(this.currentProduct.slug);
+        this.newReview = { rating: 5, comment: "" };
+        this.showNotice("Đánh giá đã được gửi!", "success");
+      } catch (err) {
+        console.error("Failed to submit review", err);
+        this.showNotice("Gửi đánh giá thất bại", "error");
+      }
+    },
+    async updateReview(reviewId, rating, comment) {
+      try {
+        await axios.put(`/products/reviews/${reviewId}`, { rating, comment });
+        await this.fetchReviews(this.currentProduct.slug);
+        this.showNotice("Đánh giá đã được cập nhật", "success");
+      } catch (err) {
+        console.error("Failed to update review", err);
+        this.showNotice("Cập nhật đánh giá thất bại", "error");
+      }
+    },
+    // Optional: delete a review (only if you add delete UI)
+    async deleteReview(reviewId) {
+      try {
+        await axios.delete(`/products/reviews/${reviewId}`);
+        await this.fetchReviews(this.currentProduct.slug);
+        this.showNotice("Đánh giá đã được xóa", "success");
+      } catch (err) {
+        console.error("Failed to delete review", err);
+        this.showNotice("Xóa đánh giá thất bại", "error");
+      }
+    },
+    formatPrice(value) {
+      if (typeof value !== 'number') return value;
+      return value.toLocaleString("vi-VN") + "₫";
+    },
+    showNotification(message, type = "info") {
+    // Simple example: set a reactive notification object
+    this.notification = {
+      visible: true,
+      message,
+      type
+    };
+
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      this.notification.visible = false;
+    }, 3000);
+  },
+
+    // --- Cart: per-user server-backed behavior ---
+    async addToCart(product) {
+      if (!product) return;
+
+      // If user not logged in, redirect to login
+      if (!this.user) {
+        window.location.href = '/login';
+        return;
+      }
+
+      try {
+        const payload = {
+          product_id: product.id ?? null,
+          name: product.name,
+          price: product.price ?? 0,
+          image: product.image ?? '',
+          quantity: 1
+        };
+        await axios.post('/user/cart', payload);
+        await this.fetchUserCart();
+        this.showNotification(`✔ Đã thêm ${product.name} vào giỏ hàng!`);
+      } catch (err) {
+        console.error('addToCart error', err);
+        if (err.response?.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+        this.showNotification('Lỗi khi thêm vào giỏ hàng');
+      }
+    },
+    async onCartIconClick() {
+      // If not logged in, go to login
+      if (!this.user) {
+        window.location.href = '/login';
+        return;
+      }
+
+      // If using Inertia, use it to navigate (preserves SPA behavior)
+      if (this.$inertia && typeof this.$inertia.visit === 'function') {
+        this.$inertia.visit('/giohang');
+        return;
+      }
+
+      // Fallback: full page navigation
+      window.location.href = '/giohang';
+    },
+    async fetchUserCart() {
+      try {
+        const res = await axios.get('/user/cart');
+        // Expect server returns array of items
+        this.cartData = Array.isArray(res.data) ? res.data : (res.data.items ?? []);
+      } catch (err) {
+        console.error('fetchUserCart error', err);
+        if (err.response?.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+        this.cartData = [];
+        this.showNotification('Không thể tải giỏ hàng');
+      }
+    },
+
+    async removeFromCart(itemId, index) {
+      if (!this.user) {
+        window.location.href = '/login';
+        return;
+      }
+      if (!itemId) {
+        // fallback local removal
+        this.cartData.splice(index, 1);
+        return;
+      }
+      try {
+        await axios.delete(`/user/cart/${itemId}`);
+        await this.fetchUserCart();
+        this.showNotification('Đã xóa sản phẩm khỏi giỏ hàng');
+      } catch (err) {
+        console.error('removeFromCart error', err);
+        this.showNotification('Xóa thất bại');
+      }
+    },
+
+    async updateCartItem(itemId, newQty) {
+      if (!this.user) {
+        window.location.href = '/login';
+        return;
+      }
+      if (!itemId) return;
+      try {
+        if (newQty <= 0) {
+          await axios.delete(`/user/cart/${itemId}`);
+        } else {
+          await axios.put(`/user/cart/${itemId}`, { quantity: newQty });
+        }
+        await this.fetchUserCart();
+      } catch (err) {
+        console.error('updateCartItem error', err);
+        this.showNotification('Cập nhật giỏ hàng thất bại');
+      }
+    },
+    async fetchBanners() {
+      try {
+        const res = await axios.get('/banners');
+      this.slides = res.data
+      .filter(b => b.active)
+      .map(b => b.image);
+      } catch (err) {
+        console.error('Failed to load banners', err);
+      }
+    },
+
+    // --- Existing local cart helpers (kept for guests, but server is primary for logged-in users) ---
+    saveCart() {
+      // keep local fallback for guests
+      localStorage.setItem("cartData", JSON.stringify(this.cartData));
+    },
+
+    // --- Other helpers (search, navigation, product open) ---
+    prevSlide() {
+      this.currentSlideIndex = (this.currentSlideIndex - 1 + this.slides.length) % this.slides.length;
+    },
+    nextSlide() {
+      this.currentSlideIndex = (this.currentSlideIndex + 1) % this.slides.length;
+    },
+
+    search() {
+      this.setView("shop", "");
+      const q = this.searchQuery.trim();
+      if (q) history.replaceState({ view: "shop", q }, "", `/shop?q=${encodeURIComponent(q)}`);
+      this.fetchAllProducts(q);
+    },
+
+    subscribeNewsletter() {
+      if (this.newsletterEmail) {
+        this.showNotification(`Đăng ký thành công: ${this.newsletterEmail}`);
+        this.newsletterEmail = "";
+      }
+    },
+
+    setView(view, slug = "") {
+      this.currentView = view || "home";
+      this.currentSlug = slug || "";
+      let url = "/";
+      if (view === "category" && slug) url = `/category/${slug}`;
+      else if (view === "post" && slug) url = `/blog/${slug}`;
+      else if (view === "shop") url = `/shop`;
+      else if (view === "contact") url = `/contact`;
+      else if (view === "about") url = `/about`;
+      else if (view === "labs") url = `/labs`;
+      history.pushState({ view: this.currentView, slug: this.currentSlug }, "", url);
+      document.title = this.computeTitle();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
+      if (this.currentView === 'category' && this.currentSlug) {
+        this.fetchProductsByCategorySlug(this.currentSlug);
+      } else if (this.currentView === 'shop') {
+        this.fetchAllProducts();
+      }
+    },
+
+    openCategory(slug) {
+      this.setView("category", slug);
+    },
+
+    openPost(slug) {
+      this.setView("post", slug);
+    },
+
+    openProduct(slug, product = null) {
+      if (product) {
+        this.currentProduct = product;
+      } else {
+        const found =
+          (this.allProducts || []).find(p => p.slug === slug) ||
+          (this.categoryProducts || []).find(p => p.slug === slug) ||
+          null;
+        this.currentProduct = found;
+      }
+
+      this.currentView = 'product';
+      this.currentSlug = slug;
+
+      const url = `/product/${slug}`;
+      history.pushState({ view: 'product', slug }, '', url);
+      document.title = this.currentProduct?.name
+        ? `${this.currentProduct.name} - FASHION STYLE STORE`
+        : 'Sản phẩm - FASHION STYLE STORE';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      this.fetchReviews(slug);
+    },
+
+    goBackFromProduct() {
+      if (history.state && history.state.view) {
+        history.back();
+        return;
+      }
+      this.setView('shop', '');
+    },
+
+    openFakeUrl(url) {
+      window.open(url, '_blank');
+    },
+
+    computeTitle() {
+      if (this.currentView === "category") return `Danh mục: ${this.categoryName} - FASHION STYLE STORE`;
+      if (this.currentView === "post") {
+        const p = this.currentPost;
+        return p ? `${p.title} - FASHION STYLE STORE` : "Tin tức - FASHION STYLE STORE";
+      }
+      if (this.currentView === "shop") return "Cửa hàng - FASHION STYLE STORE";
+      if (this.currentView === "contact") return "Liên hệ - FASHION STYLE STORE";
+      if (this.currentView === "about") return "Về chúng tôi - FASHION STYLE STORE";
+      if (this.currentView === "labs") return "Lab thực hành - FASHION STYLE STORE";
+      if (this.currentView === "product") return this.currentProduct?.name ? `${this.currentProduct.name} - FASHION STYLE STORE` : 'Sản phẩm - FASHION STYLE STORE';
+      return "FASHION STYLE STORE";
+    },
+
+    async applyPath(pathname, replaceState = false) {
+      const path = pathname.replace(/^\/+|\/+$/g, "");
+      if (!path) {
+        this.currentView = "home";
+        this.currentSlug = "";
+        if (replaceState) history.replaceState({ view: "home" }, "", "/");
+        return;
+      }
+      const parts = path.split("/");
+      if (parts[0] === "category" && parts[1]) {
+        this.currentView = "category";
+        this.currentSlug = parts[1];
+        if (replaceState) history.replaceState({ view: "category", slug: parts[1] }, "", pathname);
+        this.fetchProductsByCategorySlug(parts[1]);
+        return;
+      }
+      if (parts[0] === "blog" && parts[1]) {
+        this.currentView = "post";
+        this.currentSlug = parts[1];
+        if (replaceState) history.replaceState({ view: "post", slug: parts[1] }, "", pathname);
+        return;
+      }
+      if (parts[0] === "shop") {
+        this.currentView = "shop";
+        this.currentSlug = "";
+        if (replaceState) history.replaceState({ view: "shop" }, "", pathname);
+        this.fetchAllProducts();
+        return;
+      }
+      if (parts[0] === "product" && parts[1]) {
+        const slug = parts[1];
+        this.currentView = 'product';
+        this.currentSlug = slug;
+        if (replaceState) history.replaceState({ view: 'product', slug }, '', pathname);
+        const found =
+          (this.allProducts || []).find(p => p.slug === slug) ||
+          (this.categoryProducts || []).find(p => p.slug === slug) ||
+          null;
+        if (found) {
+          this.currentProduct = found;
+          this.fetchReviews(slug);
+        } else {
+          try {
+            const res = await axios.get(`/products/${slug}`);
+            this.currentProduct = res.data;
+            this.fetchReviews(slug); 
+          } catch {
+            this.currentProduct = null;
+          }
+        }
+        return;
+      }
+      if (parts[0] === "contact") {
+        this.currentView = "contact";
+        if (replaceState) history.replaceState({ view: "contact" }, "", pathname);
+        return;
+      }
+      if (parts[0] === "about") {
+        this.currentView = "about";
+        if (replaceState) history.replaceState({ view: "about" }, "", pathname);
+        return;
+      }
+      this.currentView = "home";
+      this.currentSlug = "";
+      if (replaceState) history.replaceState({ view: "home" }, "", "/");
+    },
+
+    logout() {
+      if (this.$inertia && typeof this.$inertia.post === "function") {
+        this.$inertia.post(route("logout"));
+      } else {
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = "/logout";
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content");
+        if (token) {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = "_token";
+          input.value = token;
+          form.appendChild(input);
+        }
+        document.body.appendChild(form);
+        form.submit();
+      }
+    },
+
+    hasRoute(name) {
+      try {
+        return typeof route === "function" && !!route(name);
+      } catch (e) {
+        return false;
+      }
+    },
+
+    // ----- Data fetching helpers -----
+    normalizePaginator(payload) {
+      if (!payload) return { data: [], meta: null, prev_page_url: null, next_page_url: null };
+      if (Array.isArray(payload)) return { data: payload, meta: null, prev_page_url: null, next_page_url: null };
+      return {
+        data: payload.data ?? [],
+        meta: payload ? {
+          total: payload.total ?? null,
+          current_page: payload.current_page ?? null,
+          last_page: payload.last_page ?? null,
+          per_page: payload.per_page ?? null,
+        } : null,
+        prev_page_url: payload.prev_page_url ?? null,
+        next_page_url: payload.next_page_url ?? null
+      };
+    },
+
+    async fetchCategories() {
+      try {
+        const res = await axios.get('/categories');
+        if (typeof res.data === 'string' && res.data.trim().startsWith('<')) {
+          console.warn('Server returned HTML for /categories');
+          this.categories = [];
+          return;
+        }
+        this.categories = res.data || [];
+      } catch (err) {
+        console.error('Không thể tải danh mục', err);
+        this.categories = [];
+      }
+    },
+
+    async fetchHomepageData() {
+      try {
+        const prodRes = await axios.get('/products', { params: { per_page: 12 } });
+        if (typeof prodRes.data === 'string' && prodRes.data.trim().startsWith('<')) {
+          console.warn('Server returned HTML for /products');
+          this.allProducts = [];
+          this.bestSellers = [];
+        } else {
+          const pag = this.normalizePaginator(prodRes.data);
+          this.allProducts = pag.data;
+          const bestRes = await axios.get('/products', { params: { best_seller: true } });
+          const bestPag = this.normalizePaginator(bestRes.data);
+          this.bestSellers = bestPag.data.slice(0, 6);
+        }
+      } catch (err) {
+        console.warn('Không thể tải sản phẩm cho trang chủ', err);
+        this.allProducts = [];
+        this.bestSellers = [];
+      }
+
+      try {
+        const postRes = await axios.get('/posts', { params: { per_page: 6 } });
+        if (typeof postRes.data === 'string' && postRes.data.trim().startsWith('<')) {
+          console.warn('Server returned HTML for /posts');
+          this.blogs = [];
+        } else {
+          const postsPag = this.normalizePaginator(postRes.data);
+          this.blogs = postsPag.data;
+        }
+      } catch (err) {
+        console.warn('Không thể tải tin tức', err);
+        this.blogs = [];
+      }
+    },
+
+    async fetchAllProducts(q = "", page = 1) {
+      try {
+        const params = { per_page: 12, page };
+        if (q) params.q = q;
+        const res = await axios.get('/products', { params });
+        if (typeof res.data === 'string' && res.data.trim().startsWith('<')) {
+          console.warn('Server returned HTML for /products');
+          this.allProducts = [];
+          this.productsPaginator = { data: [], meta: null, prev_page_url: null, next_page_url: null };
+          return;
+        }
+        const pag = this.normalizePaginator(res.data);
+        this.productsPaginator = pag;
+        this.allProducts = pag.data;
+      } catch (err) {
+        console.error('Không thể tải sản phẩm', err);
+        this.allProducts = [];
+        this.productsPaginator = { data: [], meta: null, prev_page_url: null, next_page_url: null };
+      }
+    },
+
+    async goToProductPage(page) {
+      if (!this.productsPaginator.meta) return;
+      const target = Math.max(1, Math.min(page, this.productsPaginator.meta.last_page || page));
+      await this.fetchAllProducts(this.searchQuery.trim(), target);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+
+    async fetchProductsByCategorySlug(slug) {
+      try {
+        const catRes = await axios.get('/categories');
+        if (typeof catRes.data === 'string' && catRes.data.trim().startsWith('<')) {
+          console.warn('Server returned HTML for /categories');
+          this.categoryProducts = [];
+          return;
+        }
+        const cat = (catRes.data || []).find(c => c.slug === slug);
+        if (!cat) {
+          this.categoryProducts = [];
+          return;
+        }
+        const res = await axios.get('/products', { params: { category: cat.id, per_page: 24 } });
+        if (typeof res.data === 'string' && res.data.trim().startsWith('<')) {
+          console.warn('Server returned HTML for /products by category');
+          this.categoryProducts = [];
+          return;
+        }
+        const pag = this.normalizePaginator(res.data);
+        this.categoryProducts = pag.data;
+      } catch (err) {
+        console.error('Không thể tải sản phẩm theo danh mục', err);
+        this.categoryProducts = [];
+      }
+    }
+  },
+
+  mounted() {
+    this.fetchBanners();
+
+    // slideshow auto-advance
+    setInterval(this.nextSlide, 5000);
+
+    // initialize view from current URL
+    this.applyPath(location.pathname, true);
+    document.title = this.computeTitle();
+
+    // initial data (public endpoints)
+    this.fetchCategories();
+    this.fetchHomepageData();
+
+    // if user logged in, fetch server cart
+    if (this.user) {
+      this.fetchUserCart();
+    } else {
+      // keep local fallback for guests
+      try {
+        const local = JSON.parse(localStorage.getItem("cartData") || "[]");
+        this.cartData = Array.isArray(local) ? local : [];
+      } catch {
+        this.cartData = [];
+      }
+    }
+
+    // handle back/forward
+    window.addEventListener("popstate", (event) => {
+      const st = event.state;
+      if (st && st.view) {
+        this.currentView = st.view;
+        this.currentSlug = st.slug || "";
+      } else {
+        this.applyPath(location.pathname, true);
+      }
+      document.title = this.computeTitle();
+
+      if (this.currentView === 'category' && this.currentSlug) {
+        this.fetchProductsByCategorySlug(this.currentSlug);
+      } else if (this.currentView === 'shop') {
+        this.fetchAllProducts();
+      } else if (this.currentView === 'product' && this.currentSlug) {
+        const found =
+          (this.allProducts || []).find(p => p.slug === this.currentSlug) ||
+          (this.categoryProducts || []).find(p => p.slug === this.currentSlug) ||
+          null;
+        this.currentProduct = found;
+      }
+    });
+  }
+};
 </script>
 
-<template>
-    <Head title="Welcome" />
-    <div class="bg-gray-50 text-black/50 dark:bg-black dark:text-white/50">
-        <img
-            id="background"
-            class="absolute -left-20 top-0 max-w-[877px]"
-            src="https://laravel.com/assets/img/welcome/background.svg"
-        />
-        <div
-            class="relative flex min-h-screen flex-col items-center justify-center selection:bg-[#FF2D20] selection:text-white"
-        >
-            <div class="relative w-full max-w-2xl px-6 lg:max-w-7xl">
-                <header
-                    class="grid grid-cols-2 items-center gap-2 py-10 lg:grid-cols-3"
-                >
-                    <div class="flex lg:col-start-2 lg:justify-center">
-                        <svg
-                            class="h-12 w-auto text-white lg:h-16 lg:text-[#FF2D20]"
-                            viewBox="0 0 62 65"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                        >
-                            <path
-                                d="M61.8548 14.6253C61.8778 14.7102 61.8895 14.7978 61.8897 14.8858V28.5615C61.8898 28.737 61.8434 28.9095 61.7554 29.0614C61.6675 29.2132 61.5409 29.3392 61.3887 29.4265L49.9104 36.0351V49.1337C49.9104 49.4902 49.7209 49.8192 49.4118 49.9987L25.4519 63.7916C25.3971 63.8227 25.3372 63.8427 25.2774 63.8639C25.255 63.8714 25.2338 63.8851 25.2101 63.8913C25.0426 63.9354 24.8666 63.9354 24.6991 63.8913C24.6716 63.8838 24.6467 63.8689 24.6205 63.8589C24.5657 63.8389 24.5084 63.8215 24.456 63.7916L0.501061 49.9987C0.348882 49.9113 0.222437 49.7853 0.134469 49.6334C0.0465019 49.4816 0.000120578 49.3092 0 49.1337L0 8.10652C0 8.01678 0.0124642 7.92953 0.0348998 7.84477C0.0423783 7.8161 0.0598282 7.78993 0.0697995 7.76126C0.0884958 7.70891 0.105946 7.65531 0.133367 7.6067C0.152063 7.5743 0.179485 7.54812 0.20192 7.51821C0.230588 7.47832 0.256763 7.43719 0.290416 7.40229C0.319084 7.37362 0.356476 7.35243 0.388883 7.32751C0.425029 7.29759 0.457436 7.26518 0.498568 7.2415L12.4779 0.345059C12.6296 0.257786 12.8015 0.211853 12.9765 0.211853C13.1515 0.211853 13.3234 0.257786 13.475 0.345059L25.4531 7.2415H25.4556C25.4955 7.26643 25.5292 7.29759 25.5653 7.32626C25.5977 7.35119 25.6339 7.37362 25.6625 7.40104C25.6974 7.43719 25.7224 7.47832 25.7523 7.51821C25.7735 7.54812 25.8021 7.5743 25.8196 7.6067C25.8483 7.65656 25.8645 7.70891 25.8844 7.76126C25.8944 7.78993 25.9118 7.8161 25.9193 7.84602C25.9423 7.93096 25.954 8.01853 25.9542 8.10652V33.7317L35.9355 27.9844V14.8846C35.9355 14.7973 35.948 14.7088 35.9704 14.6253C35.9792 14.5954 35.9954 14.5692 36.0053 14.5405C36.0253 14.4882 36.0427 14.4346 36.0702 14.386C36.0888 14.3536 36.1163 14.3274 36.1375 14.2975C36.1674 14.2576 36.1923 14.2165 36.2272 14.1816C36.2559 14.1529 36.292 14.1317 36.3244 14.1068C36.3618 14.0769 36.3942 14.0445 36.4341 14.0208L48.4147 7.12434C48.5663 7.03694 48.7383 6.99094 48.9133 6.99094C49.0883 6.99094 49.2602 7.03694 49.4118 7.12434L61.3899 14.0208C61.4323 14.0457 61.4647 14.0769 61.5021 14.1055C61.5333 14.1305 61.5694 14.1529 61.5981 14.1803C61.633 14.2165 61.6579 14.2576 61.6878 14.2975C61.7103 14.3274 61.7377 14.3536 61.7551 14.386C61.7838 14.4346 61.8 14.4882 61.8199 14.5405C61.8312 14.5692 61.8474 14.5954 61.8548 14.6253ZM59.893 27.9844V16.6121L55.7013 19.0252L49.9104 22.3593V33.7317L59.8942 27.9844H59.893ZM47.9149 48.5566V37.1768L42.2187 40.4299L25.953 49.7133V61.2003L47.9149 48.5566ZM1.99677 9.83281V48.5566L23.9562 61.199V49.7145L12.4841 43.2219L12.4804 43.2194L12.4754 43.2169C12.4368 43.1945 12.4044 43.1621 12.3682 43.1347C12.3371 43.1097 12.3009 43.0898 12.2735 43.0624L12.271 43.0586C12.2386 43.0275 12.2162 42.9888 12.1887 42.9539C12.1638 42.9203 12.1339 42.8916 12.114 42.8567L12.1127 42.853C12.0903 42.8156 12.0766 42.7707 12.0604 42.7283C12.0442 42.6909 12.023 42.656 12.013 42.6161C12.0005 42.5688 11.998 42.5177 11.9931 42.4691C11.9881 42.4317 11.9781 42.3943 11.9781 42.3569V15.5801L6.18848 12.2446L1.99677 9.83281ZM12.9777 2.36177L2.99764 8.10652L12.9752 13.8513L22.9541 8.10527L12.9752 2.36177H12.9777ZM18.1678 38.2138L23.9574 34.8809V9.83281L19.7657 12.2459L13.9749 15.5801V40.6281L18.1678 38.2138ZM48.9133 9.14105L38.9344 14.8858L48.9133 20.6305L58.8909 14.8846L48.9133 9.14105ZM47.9149 22.3593L42.124 19.0252L37.9323 16.6121V27.9844L43.7219 31.3174L47.9149 33.7317V22.3593ZM24.9533 47.987L39.59 39.631L46.9065 35.4555L36.9352 29.7145L25.4544 36.3242L14.9907 42.3482L24.9533 47.987Z"
-                                fill="currentColor"
-                            />
-                        </svg>
-                    </div>
-                    <nav v-if="canLogin" class="-mx-3 flex flex-1 justify-end">
-                        <Link
-                            v-if="$page.props.auth.user"
-                            :href="route('dashboard')"
-                            class="rounded-md px-3 py-2 text-black ring-1 ring-transparent transition hover:text-black/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
-                        >
-                            Dashboard
-                        </Link>
+<style scoped>
+@import '../../css/style.css';
 
-                        <template v-else>
-                            <Link
-                                :href="route('login')"
-                                class="rounded-md px-3 py-2 text-black ring-1 ring-transparent transition hover:text-black/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
-                            >
-                                Log in
-                            </Link>
+.reviews {
+  width: 100%;
+  max-width: none;
+  margin: 40px 0 0 0;
+  padding: 30px 60px;
+  background-color: #fdfdfd;
+  border-top: 1px solid #eee;
+  border-radius: 8px;
+  clear: both;
+  box-sizing: border-box;
+}
 
-                            <Link
-                                v-if="canRegister"
-                                :href="route('register')"
-                                class="rounded-md px-3 py-2 text-black ring-1 ring-transparent transition hover:text-black/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
-                            >
-                                Register
-                            </Link>
-                        </template>
-                    </nav>
-                </header>
 
-                <main class="mt-6">
-                    <div class="grid gap-6 lg:grid-cols-2 lg:gap-8">
-                        <a
-                            href="https://laravel.com/docs"
-                            id="docs-card"
-                            class="flex flex-col items-start gap-6 overflow-hidden rounded-lg bg-white p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] transition duration-300 hover:text-black/70 hover:ring-black/20 focus:outline-none focus-visible:ring-[#FF2D20] md:row-span-3 lg:p-10 lg:pb-10 dark:bg-zinc-900 dark:ring-zinc-800 dark:hover:text-white/70 dark:hover:ring-zinc-700 dark:focus-visible:ring-[#FF2D20]"
-                        >
-                            <div
-                                id="screenshot-container"
-                                class="relative flex w-full flex-1 items-stretch"
-                            >
-                                <img
-                                    src="https://laravel.com/assets/img/welcome/docs-light.svg"
-                                    alt="Laravel documentation screenshot"
-                                    class="aspect-video h-full w-full flex-1 rounded-[10px] object-cover object-top drop-shadow-[0px_4px_34px_rgba(0,0,0,0.06)] dark:hidden"
-                                    @error="handleImageError"
-                                />
-                                <img
-                                    src="https://laravel.com/assets/img/welcome/docs-dark.svg"
-                                    alt="Laravel documentation screenshot"
-                                    class="hidden aspect-video h-full w-full flex-1 rounded-[10px] object-cover object-top drop-shadow-[0px_4px_34px_rgba(0,0,0,0.25)] dark:block"
-                                />
-                                <div
-                                    class="absolute -bottom-16 -left-16 h-40 w-[calc(100%+8rem)] bg-gradient-to-b from-transparent via-white to-white dark:via-zinc-900 dark:to-zinc-900"
-                                ></div>
-                            </div>
+.reviews h2 {
+  font-size: 22px;
+  margin-bottom: 10px;
+  color: #1e88ff;
+}
 
-                            <div
-                                class="relative flex items-center gap-6 lg:items-end"
-                            >
-                                <div
-                                    id="docs-card-content"
-                                    class="flex items-start gap-6 lg:flex-col"
-                                >
-                                    <div
-                                        class="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#FF2D20]/10 sm:size-16"
-                                    >
-                                        <svg
-                                            class="size-5 sm:size-6"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                fill="#FF2D20"
-                                                d="M23 4a1 1 0 0 0-1.447-.894L12.224 7.77a.5.5 0 0 1-.448 0L2.447 3.106A1 1 0 0 0 1 4v13.382a1.99 1.99 0 0 0 1.105 1.79l9.448 4.728c.14.065.293.1.447.1.154-.005.306-.04.447-.105l9.453-4.724a1.99 1.99 0 0 0 1.1-1.789V4ZM3 6.023a.25.25 0 0 1 .362-.223l7.5 3.75a.251.251 0 0 1 .138.223v11.2a.25.25 0 0 1-.362.224l-7.5-3.75a.25.25 0 0 1-.138-.22V6.023Zm18 11.2a.25.25 0 0 1-.138.224l-7.5 3.75a.249.249 0 0 1-.329-.099.249.249 0 0 1-.033-.12V9.772a.251.251 0 0 1 .138-.224l7.5-3.75a.25.25 0 0 1 .362.224v11.2Z"
-                                            />
-                                            <path
-                                                fill="#FF2D20"
-                                                d="m3.55 1.893 8 4.048a1.008 1.008 0 0 0 .9 0l8-4.048a1 1 0 0 0-.9-1.785l-7.322 3.706a.506.506 0 0 1-.452 0L4.454.108a1 1 0 0 0-.9 1.785H3.55Z"
-                                            />
-                                        </svg>
-                                    </div>
+.star-selector {
+  display: flex;
+  gap: 6px;
+  font-size: 24px;
+  margin: 8px 0;
+  cursor: pointer;
+}
 
-                                    <div class="pt-3 sm:pt-5 lg:pt-0">
-                                        <h2
-                                            class="text-xl font-semibold text-black dark:text-white"
-                                        >
-                                            Documentation
-                                        </h2>
+.stars{
+    color: gold;
+}
 
-                                        <p class="mt-4 text-sm/relaxed">
-                                            Laravel has wonderful documentation
-                                            covering every aspect of the
-                                            framework. Whether you are a
-                                            newcomer or have prior experience
-                                            with Laravel, we recommend reading
-                                            our documentation from beginning to
-                                            end.
-                                        </p>
-                                    </div>
-                                </div>
+.star {
+  color: #ccc;
+  transition: color 0.2s;
+}
 
-                                <svg
-                                    class="size-6 shrink-0 stroke-[#FF2D20]"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke-width="1.5"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75"
-                                    />
-                                </svg>
-                            </div>
-                        </a>
+.star.active {
+  color: gold;
+}
 
-                        <a
-                            href="https://laracasts.com"
-                            class="flex items-start gap-4 rounded-lg bg-white p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] transition duration-300 hover:text-black/70 hover:ring-black/20 focus:outline-none focus-visible:ring-[#FF2D20] lg:pb-10 dark:bg-zinc-900 dark:ring-zinc-800 dark:hover:text-white/70 dark:hover:ring-zinc-700 dark:focus-visible:ring-[#FF2D20]"
-                        >
-                            <div
-                                class="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#FF2D20]/10 sm:size-16"
-                            >
-                                <svg
-                                    class="size-5 sm:size-6"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <g fill="#FF2D20">
-                                        <path
-                                            d="M24 8.25a.5.5 0 0 0-.5-.5H.5a.5.5 0 0 0-.5.5v12a2.5 2.5 0 0 0 2.5 2.5h19a2.5 2.5 0 0 0 2.5-2.5v-12Zm-7.765 5.868a1.221 1.221 0 0 1 0 2.264l-6.626 2.776A1.153 1.153 0 0 1 8 18.123v-5.746a1.151 1.151 0 0 1 1.609-1.035l6.626 2.776ZM19.564 1.677a.25.25 0 0 0-.177-.427H15.6a.106.106 0 0 0-.072.03l-4.54 4.543a.25.25 0 0 0 .177.427h3.783c.027 0 .054-.01.073-.03l4.543-4.543ZM22.071 1.318a.047.047 0 0 0-.045.013l-4.492 4.492a.249.249 0 0 0 .038.385.25.25 0 0 0 .14.042h5.784a.5.5 0 0 0 .5-.5v-2a2.5 2.5 0 0 0-1.925-2.432ZM13.014 1.677a.25.25 0 0 0-.178-.427H9.101a.106.106 0 0 0-.073.03l-4.54 4.543a.25.25 0 0 0 .177.427H8.4a.106.106 0 0 0 .073-.03l4.54-4.543ZM6.513 1.677a.25.25 0 0 0-.177-.427H2.5A2.5 2.5 0 0 0 0 3.75v2a.5.5 0 0 0 .5.5h1.4a.106.106 0 0 0 .073-.03l4.54-4.543Z"
-                                        />
-                                    </g>
-                                </svg>
-                            </div>
 
-                            <div class="pt-3 sm:pt-5">
-                                <h2
-                                    class="text-xl font-semibold text-black dark:text-white"
-                                >
-                                    Laracasts
-                                </h2>
+.review-list {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 10px;
+}
 
-                                <p class="mt-4 text-sm/relaxed">
-                                    Laracasts offers thousands of video
-                                    tutorials on Laravel, PHP, and JavaScript
-                                    development. Check them out, see for
-                                    yourself, and massively level up your
-                                    development skills in the process.
-                                </p>
-                            </div>
+.review-item {
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ddd;
+}
 
-                            <svg
-                                class="size-6 shrink-0 self-center stroke-[#FF2D20]"
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke-width="1.5"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75"
-                                />
-                            </svg>
-                        </a>
+.review-item strong {
+  font-weight: bold;
+  color: #333;
+}
 
-                        <a
-                            href="https://laravel-news.com"
-                            class="flex items-start gap-4 rounded-lg bg-white p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] transition duration-300 hover:text-black/70 hover:ring-black/20 focus:outline-none focus-visible:ring-[#FF2D20] lg:pb-10 dark:bg-zinc-900 dark:ring-zinc-800 dark:hover:text-white/70 dark:hover:ring-zinc-700 dark:focus-visible:ring-[#FF2D20]"
-                        >
-                            <div
-                                class="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#FF2D20]/10 sm:size-16"
-                            >
-                                <svg
-                                    class="size-5 sm:size-6"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <g fill="#FF2D20">
-                                        <path
-                                            d="M8.75 4.5H5.5c-.69 0-1.25.56-1.25 1.25v4.75c0 .69.56 1.25 1.25 1.25h3.25c.69 0 1.25-.56 1.25-1.25V5.75c0-.69-.56-1.25-1.25-1.25Z"
-                                        />
-                                        <path
-                                            d="M24 10a3 3 0 0 0-3-3h-2V2.5a2 2 0 0 0-2-2H2a2 2 0 0 0-2 2V20a3.5 3.5 0 0 0 3.5 3.5h17A3.5 3.5 0 0 0 24 20V10ZM3.5 21.5A1.5 1.5 0 0 1 2 20V3a.5.5 0 0 1 .5-.5h14a.5.5 0 0 1 .5.5v17c0 .295.037.588.11.874a.5.5 0 0 1-.484.625L3.5 21.5ZM22 20a1.5 1.5 0 1 1-3 0V9.5a.5.5 0 0 1 .5-.5H21a1 1 0 0 1 1 1v10Z"
-                                        />
-                                        <path
-                                            d="M12.751 6.047h2a.75.75 0 0 1 .75.75v.5a.75.75 0 0 1-.75.75h-2A.75.75 0 0 1 12 7.3v-.5a.75.75 0 0 1 .751-.753ZM12.751 10.047h2a.75.75 0 0 1 .75.75v.5a.75.75 0 0 1-.75.75h-2A.75.75 0 0 1 12 11.3v-.5a.75.75 0 0 1 .751-.753ZM4.751 14.047h10a.75.75 0 0 1 .75.75v.5a.75.75 0 0 1-.75.75h-10A.75.75 0 0 1 4 15.3v-.5a.75.75 0 0 1 .751-.753ZM4.75 18.047h7.5a.75.75 0 0 1 .75.75v.5a.75.75 0 0 1-.75.75h-7.5A.75.75 0 0 1 4 19.3v-.5a.75.75 0 0 1 .75-.753Z"
-                                        />
-                                    </g>
-                                </svg>
-                            </div>
+.review-form {
+  margin-top: 20px;
+}
 
-                            <div class="pt-3 sm:pt-5">
-                                <h2
-                                    class="text-xl font-semibold text-black dark:text-white"
-                                >
-                                    Laravel News
-                                </h2>
+.review-form h3 {
+  margin-bottom: 10px;
+  font-size: 18px;
+  color: #444;
+}
 
-                                <p class="mt-4 text-sm/relaxed">
-                                    Laravel News is a community driven portal
-                                    and newsletter aggregating all of the latest
-                                    and most important news in the Laravel
-                                    ecosystem, including new package releases
-                                    and tutorials.
-                                </p>
-                            </div>
+.review-form label {
+  display: block;
+  margin-top: 10px;
+  font-weight: 500;
+}
 
-                            <svg
-                                class="size-6 shrink-0 self-center stroke-[#FF2D20]"
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke-width="1.5"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75"
-                                />
-                            </svg>
-                        </a>
+.review-form input[type="number"],
+.review-form textarea {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
 
-                        <div
-                            class="flex items-start gap-4 rounded-lg bg-white p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] lg:pb-10 dark:bg-zinc-900 dark:ring-zinc-800"
-                        >
-                            <div
-                                class="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#FF2D20]/10 sm:size-16"
-                            >
-                                <svg
-                                    class="size-5 sm:size-6"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <g fill="#FF2D20">
-                                        <path
-                                            d="M16.597 12.635a.247.247 0 0 0-.08-.237 2.234 2.234 0 0 1-.769-1.68c.001-.195.03-.39.084-.578a.25.25 0 0 0-.09-.267 8.8 8.8 0 0 0-4.826-1.66.25.25 0 0 0-.268.181 2.5 2.5 0 0 1-2.4 1.824.045.045 0 0 0-.045.037 12.255 12.255 0 0 0-.093 3.86.251.251 0 0 0 .208.214c2.22.366 4.367 1.08 6.362 2.118a.252.252 0 0 0 .32-.079 10.09 10.09 0 0 0 1.597-3.733ZM13.616 17.968a.25.25 0 0 0-.063-.407A19.697 19.697 0 0 0 8.91 15.98a.25.25 0 0 0-.287.325c.151.455.334.898.548 1.328.437.827.981 1.594 1.619 2.28a.249.249 0 0 0 .32.044 29.13 29.13 0 0 0 2.506-1.99ZM6.303 14.105a.25.25 0 0 0 .265-.274 13.048 13.048 0 0 1 .205-4.045.062.062 0 0 0-.022-.07 2.5 2.5 0 0 1-.777-.982.25.25 0 0 0-.271-.149 11 11 0 0 0-5.6 2.815.255.255 0 0 0-.075.163c-.008.135-.02.27-.02.406.002.8.084 1.598.246 2.381a.25.25 0 0 0 .303.193 19.924 19.924 0 0 1 5.746-.438ZM9.228 20.914a.25.25 0 0 0 .1-.393 11.53 11.53 0 0 1-1.5-2.22 12.238 12.238 0 0 1-.91-2.465.248.248 0 0 0-.22-.187 18.876 18.876 0 0 0-5.69.33.249.249 0 0 0-.179.336c.838 2.142 2.272 4 4.132 5.353a.254.254 0 0 0 .15.048c1.41-.01 2.807-.282 4.117-.802ZM18.93 12.957l-.005-.008a.25.25 0 0 0-.268-.082 2.21 2.21 0 0 1-.41.081.25.25 0 0 0-.217.2c-.582 2.66-2.127 5.35-5.75 7.843a.248.248 0 0 0-.09.299.25.25 0 0 0 .065.091 28.703 28.703 0 0 0 2.662 2.12.246.246 0 0 0 .209.037c2.579-.701 4.85-2.242 6.456-4.378a.25.25 0 0 0 .048-.189 13.51 13.51 0 0 0-2.7-6.014ZM5.702 7.058a.254.254 0 0 0 .2-.165A2.488 2.488 0 0 1 7.98 5.245a.093.093 0 0 0 .078-.062 19.734 19.734 0 0 1 3.055-4.74.25.25 0 0 0-.21-.41 12.009 12.009 0 0 0-10.4 8.558.25.25 0 0 0 .373.281 12.912 12.912 0 0 1 4.826-1.814ZM10.773 22.052a.25.25 0 0 0-.28-.046c-.758.356-1.55.635-2.365.833a.25.25 0 0 0-.022.48c1.252.43 2.568.65 3.893.65.1 0 .2 0 .3-.008a.25.25 0 0 0 .147-.444c-.526-.424-1.1-.917-1.673-1.465ZM18.744 8.436a.249.249 0 0 0 .15.228 2.246 2.246 0 0 1 1.352 2.054c0 .337-.08.67-.23.972a.25.25 0 0 0 .042.28l.007.009a15.016 15.016 0 0 1 2.52 4.6.25.25 0 0 0 .37.132.25.25 0 0 0 .096-.114c.623-1.464.944-3.039.945-4.63a12.005 12.005 0 0 0-5.78-10.258.25.25 0 0 0-.373.274c.547 2.109.85 4.274.901 6.453ZM9.61 5.38a.25.25 0 0 0 .08.31c.34.24.616.561.8.935a.25.25 0 0 0 .3.127.631.631 0 0 1 .206-.034c2.054.078 4.036.772 5.69 1.991a.251.251 0 0 0 .267.024c.046-.024.093-.047.141-.067a.25.25 0 0 0 .151-.23A29.98 29.98 0 0 0 15.957.764a.25.25 0 0 0-.16-.164 11.924 11.924 0 0 0-2.21-.518.252.252 0 0 0-.215.076A22.456 22.456 0 0 0 9.61 5.38Z"
-                                        />
-                                    </g>
-                                </svg>
-                            </div>
+.review-form button {
+  margin-top: 12px;
+  padding: 8px 16px;
+  background-color: #1e88ff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
 
-                            <div class="pt-3 sm:pt-5">
-                                <h2
-                                    class="text-xl font-semibold text-black dark:text-white"
-                                >
-                                    Vibrant Ecosystem
-                                </h2>
+.review-form button:hover {
+  background-color: #1565d8;
+}
 
-                                <p class="mt-4 text-sm/relaxed">
-                                    Laravel's robust library of first-party
-                                    tools and libraries, such as
-                                    <a
-                                        href="https://forge.laravel.com"
-                                        class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white dark:focus-visible:ring-[#FF2D20]"
-                                        >Forge</a
-                                    >,
-                                    <a
-                                        href="https://vapor.laravel.com"
-                                        class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white"
-                                        >Vapor</a
-                                    >,
-                                    <a
-                                        href="https://nova.laravel.com"
-                                        class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white"
-                                        >Nova</a
-                                    >,
-                                    <a
-                                        href="https://envoyer.io"
-                                        class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white"
-                                        >Envoyer</a
-                                    >, and
-                                    <a
-                                        href="https://herd.laravel.com"
-                                        class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white"
-                                        >Herd</a
-                                    >
-                                    help you take your projects to the next
-                                    level. Pair them with powerful open source
-                                    libraries like
-                                    <a
-                                        href="https://laravel.com/docs/billing"
-                                        class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white"
-                                        >Cashier</a
-                                    >,
-                                    <a
-                                        href="https://laravel.com/docs/dusk"
-                                        class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white"
-                                        >Dusk</a
-                                    >,
-                                    <a
-                                        href="https://laravel.com/docs/broadcasting"
-                                        class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white"
-                                        >Echo</a
-                                    >,
-                                    <a
-                                        href="https://laravel.com/docs/horizon"
-                                        class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white"
-                                        >Horizon</a
-                                    >,
-                                    <a
-                                        href="https://laravel.com/docs/sanctum"
-                                        class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white"
-                                        >Sanctum</a
-                                    >,
-                                    <a
-                                        href="https://laravel.com/docs/telescope"
-                                        class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white"
-                                        >Telescope</a
-                                    >, and more.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </main>
 
-                <footer
-                    class="py-16 text-center text-sm text-black dark:text-white/70"
-                >
-                    Laravel v{{ laravelVersion }} (PHP v{{ phpVersion }})
-                </footer>
-            </div>
-        </div>
-    </div>
-</template>
+/* small overrides for cart panel */
+.cart-panel {
+  background: white;
+  padding: 16px;
+  width: 320px;
+  max-height: 80vh;
+  overflow-y: auto;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+.cart-dropdown {
+  position: absolute;
+  right: 20px;
+  top: 60px;
+  z-index: 999;
+  background: #fff;
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+  width: 320px;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+/* Category heading: full width and centered */
+.product-list .category-title {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin: 18px 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #4da6ff;
+  line-height: 1.2;
+}
+
+/* Equal-height product grid using CSS Grid */
+.product-list .list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 18px;
+  justify-items: center;
+  align-items: start;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 12px;
+  padding: 0;
+}
+
+/* Make each card a column flex container so children can stretch */
+.product-list .product-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: stretch;
+  width: 100%;
+  max-width: 290px;
+  min-height: 440px;
+  padding: 14px;
+  box-sizing: border-box;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+/* Image area: fixed height so all cards look consistent */
+.product-card .image-container {
+  width: 100%;
+  height: 220px;
+  overflow: hidden;
+  border-radius: 10px;
+  position: relative;
+  background: #fff;
+  margin-bottom: 12px;
+}
+
+/* Ensure image covers the container uniformly */
+.product-card .image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Title: limit lines so long titles don't break layout */
+.product-card h3 {
+  font-size: 18px;
+  color: #0d47a1;
+  margin: 0;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Short description: optional, clamp to 2 lines */
+.product-card p {
+  margin: 0;
+  color: #555;
+  font-size: 14px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Price and actions area pinned to bottom */
+.product-card .price {
+  margin-top: 12px;
+  font-weight: 700;
+  color: #077bff;
+}
+
+/* Make add-to-cart button consistent and at bottom */
+.product-card .add-to-cart {
+  margin-top: 12px;
+  align-self: center;
+  padding: 10px 14px;
+  background: #037df7;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* Cart dropdown item styles */
+.cart-item { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #f1f1f1; }
+.cart-item-content { display:flex; gap:8px; align-items:center; }
+.remove-item { background:transparent; border:none; color:#999; cursor:pointer; }
+.quantity-controls { display:flex; align-items:center; gap:8px; }
+.quantity-controls button { padding:4px 8px; border-radius:6px; border:1px solid #ddd; background:#fff; cursor:pointer; }
+
+
+.product-detail{
+  flex-direction: column;
+}
+/* Product detail styles */
+.product-detail .detail-card {
+  display: flex;
+  gap: 24px;
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 18px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+}
+.detail-media img {
+  width: 420px;
+  height: 420px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+.detail-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.detail-title {
+  font-size: 28px;
+  color: rgb(47, 36, 255);
+  margin: 0 0 12px 0;
+}
+.detail-price { font-size: 22px; margin-bottom: 12px; color: #1e88ff; }
+.detail-desc { color: #444; line-height: 1.5; margin-bottom: 18px; }
+.detail-actions { display:flex; gap:12px; align-items:center; margin-bottom:12px; }
+.add-to-cart-large {
+  background: #1e88ff;
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.btn-back { color: #666; text-decoration: underline; }
+.fake-url { margin-top: 12px; color: #666; font-size: 14px; }
+.fake-url a { color: #1e88ff; text-decoration: none; }
+.fake-url a:hover { text-decoration: underline; }
+
+/* Back link stays full width below the grid */
+.product-list .back-home {
+  width: 100%;
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  clear: both;
+}
+
+/* Style the link as a button */
+.product-list .back-home .btn-back {
+  display: inline-block;
+  padding: 10px 16px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid #ddd;
+  color: #333;
+  text-decoration: none;
+  font-weight: 600;
+  transition: background .12s, transform .06s;
+}
+.product-list .back-home .btn-back:hover {
+  background: #f7f7f7;
+  transform: translateY(-1px);
+}
+
+/* Pagination */
+.pagination { display:flex; justify-content:center; align-items:center; gap:12px; margin:16px 0; width:100%; }
+.page-btn { background: var(--blue-500, #1e88ff); color:#fff; border:1px solid var(--blue-500, #1e88ff); padding:8px 14px; border-radius:8px; font-weight:600; cursor:pointer; }
+.page-btn:disabled { background:#cfe6ff; border-color:#cfe6ff; cursor:not-allowed; opacity:0.6; }
+.page-info { color:#444; font-weight:600; min-width:140px; text-align:center; }
+
+/* Notification */
+.notification {
+  display: block;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background:#1f75ff;
+  color: white;
+  padding: 12px;
+  border-radius: 5px;
+  font-weight: bold;
+  z-index: 1200;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .reviews {
+    padding: 20px;
+  }
+}
+@media (max-width: 900px) {
+  .product-detail .detail-card { flex-direction: column; align-items: center; }
+  .detail-media img { width: 100%; height: auto; max-height: 420px; }
+  .detail-info { width: 100%; }
+}
+@media (max-width: 768px) {
+  .product-list .list {
+    grid-template-columns: 1fr;
+  }
+  .product-card {
+    max-width: 720px;
+    min-height: auto;
+  }
+}
+</style>
+

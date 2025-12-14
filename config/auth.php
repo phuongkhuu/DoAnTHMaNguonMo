@@ -59,21 +59,17 @@ return [
     |
     */
 
-    // File: config/auth.php
+    'providers' => [
+        'users' => [
+            'driver' => 'eloquent',
+            'model' => env('AUTH_MODEL', App\Models\User::class),
+        ],
 
-'providers' => [
-    'users' => [
-        'driver' => 'eloquent',
-        // Dòng này đang lấy Model từ .env, nhưng chúng ta sẽ sửa để chắc chắn:
-        'model' => App\Models\User::class, 
-        
-        // <<< SỬA VÀ THÊM DÒNG NÀY VÀO ĐÂY >>>
-        // Điều này buộc Laravel tìm kiếm trong bảng 'user_account'
-        'table' => 'user_account', 
+        // 'users' => [
+        //     'driver' => 'database',
+        //     'table' => 'users',
+        // ],
     ],
-
-    //...
-],
 
     /*
     |--------------------------------------------------------------------------
