@@ -26,33 +26,7 @@
           </div>
         </template>
 
-        <a href="/giohang" class="gio-hang" @click.prevent="onCartIconClick">
-            Giỏ hàng <span class="so-luong-gio-hang">{{ totalQuantity }}</span>
-          </a>
-
-
-        <div v-show="cartVisible" class="cart-dropdown">
-          <p v-if="cartData.length === 0" class="cart-empty">Bạn chưa thêm sản phẩm nào.</p>
-          <div id="cart-items">
-            <div v-for="(item, index) in cartData" :key="item.id || index" class="cart-item">
-              <div class="cart-item-content">
-                <span class="product-name">{{ item.name }}</span>
-                <button class="remove-item" @click="removeFromCart(item.id, index)">X</button>
-              </div>
-              <div class="quantity-controls">
-                <button @click="updateCartItem(item.id, Math.max(0, item.quantity - 1))">-</button>
-                <span class="quantity">x{{ item.quantity }}</span>
-                <button @click="updateCartItem(item.id, item.quantity + 1)">+</button>
-              </div>
-              <span class="price">{{ formatPrice((item.price || 0) * (item.quantity || 0)) }}</span>
-            </div>
-          </div>
-          <p class="cart-total">Tổng: <strong>{{ formatPrice(cartTotal) }}</strong></p>
-          <div class="cart-actions">
-            <a href="/giohang" class="btn-cart" data-inertia="false">Xem giỏ hàng</a>
-            <a href="/checkout" class="btn-checkout" data-inertia="false">Thanh toán</a>
-          </div>
-        </div>
+       
       </div>
     </header>
 
@@ -173,46 +147,7 @@
           </div>
         </div>
         <!-- 🔽 Reviews at the bottom -->
-        <div class="reviews">
-          <h2>Đánh giá sản phẩm</h2>
-          <!-- Average rating -->
-          <p v-if="productReviews.length">
-            Trung bình: <span class="stars">{{ renderStars(averageRating) }}</span>
-            ({{ productReviews.length }} lượt)
-          </p>
-          <p v-else><span style="font-style: italic ;">Chưa có đánh giá nào</span></p>
-          <!-- Review list -->
-          <ul class="review-list">
-            <li v-for="r in productReviews" :key="r.id" class="review-item">
-              <strong>{{ r.user.name }}</strong> —
-              <span class="stars">{{ renderStars(r.rating) }}</span>
-              <p>{{ r.comment }}</p>
-            </li>
-          </ul>
-
-          <!-- Review form -->
-          <div v-if="user" class="review-form">
-            <h3>Viết đánh giá của bạn</h3>
-            <form @submit.prevent="submitReview">
-                <label>Điểm đánh giá:</label>
-                <div class="star-selector">
-                  <span
-                    v-for="star in 5"
-                    :key="star"
-                    class="star"
-                    :class="{ active: star <= newReview.rating }"
-                    @click="newReview.rating = star"
-                  >
-                    ★
-                  </span>
-                </div>
-
-                <label>Bình luận:</label>
-                <textarea v-model="newReview.comment"></textarea>
-                <button type="submit">Gửi</button>
-              </form>
-          </div>
-        </div>
+        
       </section>
 
 
@@ -576,7 +511,7 @@ export default {
           return;
         }
         this.cartData = [];
-        this.showNotification('Không thể tải giỏ hàng');
+
       }
     },
 

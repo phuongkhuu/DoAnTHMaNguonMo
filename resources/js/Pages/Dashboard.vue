@@ -621,6 +621,8 @@ watch(activeTab, (t) => {
             <p class="muted">Bạn đã đăng nhập! Hãy quản lý sản phẩm, danh mục, bài viết và banner từ trang quản trị.</p>
             <div class="welcome-actions">
               <button class="btn-accent" @click="openProductForm()">Sản phẩm mới</button>
+              <button class="btn-accent-outline" @click="openCategoryForm()">Danh mục mới</button>
+              <button class="btn-accent" @click="openBannerForm()">Banner mới</button>
             </div>
           </div>
 
@@ -629,17 +631,27 @@ watch(activeTab, (t) => {
               <div class="stat-value">{{ productCount }}</div>
               <div class="stat-label">Sản phẩm</div>
             </div>
+            <div class="stat">
+              <div class="stat-value">{{ categoryCount }}</div>
+              <div class="stat-label">Danh mục</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">{{ receiptCount }}</div>
+              <div class="stat-label">Hóa đơn</div>
+            </div>
           </div>
         </section>
 
         <!-- Tabs -->
         <div style="display:flex; gap:8px; margin:18px 0;">
           <button :class="['btn-outline', { 'btn-primary': activeTab === 'products' }]" @click="activeTab = 'products'">Sản phẩm</button>
+          <button :class="['btn-outline', { 'btn-primary': activeTab === 'categories' }]" @click="activeTab = 'categories'">Danh mục</button>
+          <button :class="['btn-outline', { 'btn-primary': activeTab === 'banners' }]" @click="activeTab = 'banners'">Banner</button>
         </div>
 
         <!-- Products tab -->
         <section v-if="activeTab === 'products'" class="card" style="margin-bottom:18px;">
-          <h4 style="margin-bottom:12px; color:var(--pink-500)">Sản phẩm</h4>
+          <h4 style="margin-bottom:12px; color:var(--blue-500)">Sản phẩm</h4>
 
           <div v-if="loading" style="padding:12px;">Đang tải...</div>
 
@@ -695,16 +707,231 @@ watch(activeTab, (t) => {
               </button>
             </div>
         </section>
+
+        <!-- Categories tab -->
+        <section v-if="activeTab === 'categories'" class="card" style="margin-bottom:18px;">
+          <h4 style="margin-bottom:12px; color:var(--blue-500)">Danh mục</h4>
+
+          <div v-if="categoryLoading" style="padding:12px;">Đang tải...</div>
+
+          <table v-else style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr style="text-align:left; border-bottom:1px solid #eee;">
+                <th style="padding:8px">Mã</th>
+                <th style="padding:8px">Tên</th>
+                <th style="padding:8px">Slug</th>
+                <th style="padding:8px">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="c in categories" :key="c.id" style="border-bottom:1px solid #faf0f5;">
+                <td style="padding:8px">{{ c.id }}</td>
+                <td style="padding:8px">{{ c.name }}</td>
+                <td style="padding:8px">{{ c.slug }}</td>
+                <td style="padding:8px">
+                  <button @click="openCategoryForm(c)" style="margin-right:8px;">Sửa</button>
+                  <button @click="deleteCategory(c.id)" style="color:#c00;">Xóa</button>
+                </td>
+              </tr>
+              <tr v-if="categories.length === 0">
+                <td colspan="6" style="padding:12px; color:var(--muted)">Không có danh mục.</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <!-- Banners tab -->
+          <section v-if="activeTab === 'banners'" class="card" style="margin-bottom:18px;">
+            <h4 style="margin-bottom:12px; color:var(--blue-500)">Banner</h4>
+
+            <div v-if="bannerLoading" style="padding:12px;">Đang tải...</div>
+
+            <table v-else style="width:100%; border-collapse:collapse;">
+              <thead>
+                <tr style="text-align:left; border-bottom:1px solid #eee;">
+                  <th style="padding:8px">Mã</th>
+                  <th style="padding:8px">Ảnh</th>
+                  <th style="padding:8px">Thứ tự</th>
+                  <th style="padding:8px">Hoạt động</th>
+                  <th style="padding:8px">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="b in banners" :key="b.id" style="border-bottom:1px solid #faf0f5;">
+                  <td style="padding:8px">{{ b.id }}</td>
+                  <td style="padding:8px"><img :src="b.image" alt="" style="height:60px;" /></td>
+                  <td style="padding:8px">{{ b.sort_order }}</td>
+                  <td style="padding:8px">{{ b.active ? 'Có' : 'Không' }}</td>
+                  <td style="padding:8px">
+                    <button @click="openBannerForm(b)" style="margin-right:8px;">Sửa</button>
+                    <button @click="deleteBanner(b.id)" style="color:#c00;">Xóa</button>
+                  </td>
+                </tr>
+                <tr v-if="banners.length === 0">
+                  <td colspan="6" style="padding:12px; color:var(--muted)">Không có banner.</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+          <section v-if="activeTab === 'reviews'" class="card" style="margin-bottom:18px;">
+              <h4 style="margin-bottom:12px; color:var(--blue-500)">Đánh giá</h4>
+
+              <div v-if="reviewLoading" style="padding:12px;">Đang tải...</div>
+
+              <table v-else style="width:100%; border-collapse:collapse;">
+                <thead>
+                  <tr style="text-align:left; border-bottom:1px solid #eee;">
+                    <th style="padding:8px">Mã</th>
+                    <th style="padding:8px">Sản phẩm</th>
+                    <th style="padding:8px">Người dùng</th>
+                    <th style="padding:8px">Sao</th>
+                    <th style="padding:8px">Bình luận</th>
+                    <th style="padding:8px">Hoạt động</th>
+                    <th style="padding:8px">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="r in reviews" :key="r.id" style="border-bottom:1px solid #faf0f5;">
+                    <td style="padding:8px">{{ r.id }}</td>
+                    <td style="padding:8px">{{ r.product?.name || r.product_id }}</td>
+                    <td style="padding:8px">{{ r.user?.name || r.user_id }}</td>
+                    <td style="padding:8px">{{ r.rating }}</td>
+                    <td style="padding:8px">{{ r.comment }}</td>
+                    <td style="padding:8px">{{ r.active ? 'Có' : 'Không' }}</td>
+                    <td style="padding:8px">
+                      <button @click="deleteReview(r.id)" style="color:#c00;">Xóa</button>
+                    </td>
+                  </tr>
+                  <tr v-if="reviews.length === 0">
+                    <td colspan="7" style="padding:12px; color:var(--muted)">Không có đánh giá.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+        <!-- Receipts tab -->
+        <section v-if="activeTab === 'receipts'" class="card" style="margin-bottom:18px;">
+          <h4 style="margin-bottom:12px; color:var(--blue-500)">Hóa đơn</h4>
+
+          <div v-if="receiptLoading" style="padding:12px;">Đang tải...</div>
+
+          <table v-else style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr style="text-align:left; border-bottom:1px solid #eee;">
+                <th style="padding:8px">Mã</th>
+                <th style="padding:8px">Người dùng</th>
+                <th style="padding:8px">Tổng tiền</th>
+                <th style="padding:8px">Trạng thái</th>
+                <th style="padding:8px">Ngày tạo</th>
+                <th style="padding:8px">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="r in receipts" :key="r.id" style="border-bottom:1px solid #faf0f5;">
+                <td style="padding:8px">{{ r.id }}</td>
+                <td style="padding:8px">{{ r.user?.name || '-' }}</td>
+                <td style="padding:8px">{{ new Intl.NumberFormat('vi-VN').format(r.total || 0) }}₫</td>
+                <td style="padding:8px">{{ r.status }}</td>
+                <td style="padding:8px">{{ new Date(r.created_at).toLocaleString('vi-VN') }}</td>
+                <td style="padding:8px">
+                  <button @click="viewReceipt(r)" style="margin-right:8px;">Xem</button>
+                  <button @click="deleteReceipt(r.id)" style="color:#c00;">Xóa</button>
+                </td>
+              </tr>
+              <tr v-if="receipts.length === 0">
+                <td colspan="6" style="padding:12px; color:var(--muted)">Không có hóa đơn.</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <div v-if="bannerFormVisible" class="modal" 
+     style="position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.35); z-index:60;">
+  <div style="background:white; width:520px; max-width:95%; border-radius:10px; padding:18px;">
+    <h3 style="margin:0 0 12px;">{{ editingBanner.id ? 'Sửa banner' : 'Tạo banner mới' }}</h3>
+
+    <!-- Banner form -->
+          <div style="display:grid; grid-template-columns: 1fr; gap:10px;">
+            <!-- 🔽 URL input -->
+            <label>
+              Ảnh (URL hoặc tải lên)
+              <input v-model="editingBanner.image" placeholder="https://..." 
+                    style="width:100%; padding:10px; border-radius:8px; border:1px solid #eee; font-size:14px; margin-top:6px;" />
+            </label>
+
+            <!-- 🔽 File upload -->
+            <div style="margin-top:8px; display:flex; gap:12px; align-items:center;">
+              <input type="file" @change="onBannerImageSelected" accept="image/*" />
+              <div style="font-size:12px; color:#888;">Kích thước tối ưu: 1200×400 · JPG/PNG</div>
+              <button v-if="editingBanner.image || bannerFile" 
+                      @click="editingBanner.image = ''; bannerFile = null" 
+                      style="margin-left:auto; background:#fff; border:1px solid #eee; padding:6px 8px; border-radius:8px; cursor:pointer;">
+                Xóa ảnh
+              </button>
+            </div>
+
+            <!-- 🔽 Preview -->
+            <div v-if="previewBanner" style="margin-top:10px; border:1px solid #eee; border-radius:8px; overflow:hidden;">
+              <img :src="previewBanner" alt="Banner preview" style="width:100%; height:auto;" />
+            </div>
+
+                  <!-- Active checkbox -->
+                  <label style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+                    <input type="checkbox" v-model="editingBanner.active" /> Hoạt động
+                  </label>
+                </div>
+
+                <!-- Actions -->
+                <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
+                  <button @click="closeBannerForm" 
+                          style="padding:8px 12px; border-radius:8px; background:#f0f0f0;">Hủy</button>
+                  <button @click="saveBanner" 
+                          style="padding:8px 12px; border-radius:8px; background:linear-gradient(90deg,var(--blue-400),var(--blue-500)); color:white;">
+                    Lưu
+                  </button>
+                </div>
+              </div>
+            </div>
               <!-- Cards grid -->
               <section class="cards-grid">
                 <div class="card">
                   <h4>Thông tin website</h4>
-                  <p class="muted">HOA XINH STORE — đồ án sinh viên.</p>
+                  <p class="muted">FASHION STYLE STORE</p>
                   <p class="muted">Địa chỉ: 180 Cao Lỗ, P.4, Q.8, TP.HCM.</p>
                 </div>
               </section>
             </div>
           </div>
+          <div v-if="reviewFormVisible" class="modal"
+          style="position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.35); z-index:60;">
+        <div style="background:white; width:520px; max-width:95%; border-radius:10px; padding:18px;">
+          <h3 style="margin:0 0 12px;">{{ editingReview.id ? 'Sửa đánh giá' : 'Tạo đánh giá mới' }}</h3>
+
+          <div style="display:grid; grid-template-columns: 1fr; gap:10px;">
+            <label>
+              Người dùng
+              <input v-model="editingReview.user_name" style="width:100%; padding:8px; border:1px solid #eee; border-radius:6px;" />
+            </label>
+            <label>
+              Sản phẩm ID
+              <input v-model="editingReview.product_id" type="number" style="width:100%; padding:8px; border:1px solid #eee; border-radius:6px;" />
+            </label>
+            <label>
+              Sao
+              <input v-model="editingReview.rating" type="number" min="1" max="5" style="width:100%; padding:8px; border:1px solid #eee; border-radius:6px;" />
+            </label>
+            <label>
+              Bình luận
+              <textarea v-model="editingReview.comment" style="width:100%; padding:8px; border:1px solid #eee; border-radius:6px;"></textarea>
+            </label>
+            <label style="display:flex; align-items:center; gap:8px;">
+              <input type="checkbox" v-model="editingReview.active" /> Hoạt động
+            </label>
+          </div>
+
+          <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
+            <button @click="closeReviewForm" style="padding:8px 12px; border-radius:8px; background:#f0f0f0;">Hủy</button>
+            <button @click="saveReview" style="padding:8px 12px; border-radius:8px; background:linear-gradient(90deg,var(--blue-400),var(--blue-500)); color:white;">Lưu</button>
+          </div>
+        </div>
+      </div>
     <!-- Product modal -->
 <div v-if="productFormVisible" class="modal" style="position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.45); z-index:70;">
   <div style="background:white;width:1000px;max-width:96%;border-radius:12px;padding:16px;box-shadow:0 20px 50px rgba(0,0,0,0.18);max-height:calc(100vh - 48px);overflow:visible;display:flex;flex-direction:column;">
@@ -823,7 +1050,67 @@ watch(activeTab, (t) => {
     </div>
   </div>
 </div>
+    <!-- Category modal -->
+    <div v-if="categoryFormVisible" class="modal" style="position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.35); z-index:50;">
+      <div style="background:white; width:520px; max-width:95%; border-radius:10px; padding:18px;">
+        <h3 style="margin:0 0 12px;">{{ editingCategory.id ? 'Sửa danh mục' : 'Tạo danh mục' }}</h3>
 
+        <div style="display:grid; grid-template-columns: 1fr; gap:10px;">
+          <label style="display:block;">
+            Tên
+            <input v-model="editingCategory.name" style="width:100%; padding:8px; margin-top:6px;" />
+          </label>
+
+          <label style="display:block;">
+            Thứ tự
+            <input type="number" v-model.number="editingCategory.sort_order" style="width:100%; padding:8px; margin-top:6px;" />
+          </label>
+        </div>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
+          <button @click="closeCategoryForm" style="padding:8px 12px; border-radius:8px; background:#f0f0f0;">Hủy</button>
+          <button @click="saveCategory" style="padding:8px 12px; border-radius:8px; background:linear-gradient(90deg,var(--blue-400),var(--blue-500)); color:white;">
+            Lưu
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- Receipt detail modal -->
+<div v-if="receiptModalVisible" class="modal" style="position:fixed; inset:0; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; z-index:80;">
+  <div style="background:white; width:800px; max-width:96%; border-radius:12px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,0.18); max-height:calc(100vh - 48px); overflow:auto;">
+    <h3 style="margin-bottom:12px; color:var(--blue-500);">Chi tiết hóa đơn #{{ selectedReceipt?.id }}</h3>
+
+    <div style="margin-bottom:12px; font-size:14px; color:#444;">
+      <div><strong>Người dùng:</strong> {{ selectedReceipt?.user?.name || '—' }}</div>
+      <div><strong>Trạng thái:</strong> {{ selectedReceipt?.status }}</div>
+      <div><strong>Tổng tiền:</strong> {{ new Intl.NumberFormat('vi-VN').format(selectedReceipt?.total || 0) }}₫</div>
+      <div><strong>Ngày tạo:</strong> {{ new Date(selectedReceipt?.created_at).toLocaleString('vi-VN') }}</div>
+    </div>
+
+    <table style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr style="text-align:left; border-bottom:1px solid #eee;">
+          <th style="padding:8px">Sản phẩm</th>
+          <th style="padding:8px">Giá</th>
+          <th style="padding:8px">Số lượng</th>
+          <th style="padding:8px">Tổng</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="item in selectedReceipt?.items" :key="item.id" style="border-bottom:1px solid #faf0f5;">
+          <td style="padding:8px">{{ item.name }}</td>
+          <td style="padding:8px">{{ new Intl.NumberFormat('vi-VN').format(item.price) }}₫</td>
+          <td style="padding:8px">{{ item.quantity }}</td>
+          <td style="padding:8px">{{ new Intl.NumberFormat('vi-VN').format(item.price * item.quantity) }}₫</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="display:flex; justify-content:flex-end; margin-top:18px;">
+      <button @click="receiptModalVisible = false" style="padding:10px 14px; border-radius:8px; background:#f6f6f6; border:1px solid #eee; cursor:pointer;">Đóng</button>
+    </div>
+  </div>
+</div>
     <!-- Notification -->
     <div
       v-if="notification.visible"
