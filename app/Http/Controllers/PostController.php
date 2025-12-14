@@ -24,7 +24,63 @@ class PostController extends Controller
         return response()->json($paginated);
     }
 
-    
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'title' => 'required|string|max:255',
+            'slug' => 'nullable|string|max:255|unique:posts,slug',
+            'excerpt' => 'nullable|string',
+            'content' => 'nullable|string',
+            'image' => 'nullable|file|image|max:5120',
+            'published_at' => 'nullable|date',
+        ]);
+
+        if (empty($data['slug'])) {
+            $data['slug'] = Str::slug($data['title']);
+            $base = $data['slug']; $i = 1;
+            while (Post::where('slug', $data['slug'])->exists()) {
+                $data['slug'] = $base . '-' . $i++;
+            }
+        }
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('posts', 'public');
+            $data['image'] = Storage::url($path);
+        }
+
+        $post = Post::create($data);
+        return response()->json($post, 201);
+    }
+
+    public function show(Post $post)
+    {
+        return response()->json($post);
+    }
+
+    public function update(Request $request, Post $post)
+    {
+        $data = $request->validate([
+            'title' => 'required|string|max:255',
+            'slug' => ['required','string','max:255', Rule::unique('posts','slug')->ignore($post->id)],
+            'excerpt' => 'nullable|string',
+            'content' => 'nullable|string',
+            'image' => 'nullable|file|image|max:5120',
+            'published_at' => 'nullable|date',
+        ]);
+
+        if ($request->hasFile('image')) {
+            if ($post->image && str_starts_with($post->image, '/storage/')) {
+                $old = ltrim(str_replace('/storage/', '', $post->image), '/');
+                Storage::disk('public')->delete($old);
+            }
+            $path = $request->file('image')->store('posts', 'public');
+            $data['image'] = Storage::url($path);
+        }
+
+        $post->update($data);
+        return response()->json($post);
+    }
+
     public function destroy(Post $post)
     {
         if ($post->image && str_starts_with($post->image, '/storage/')) {
