@@ -74,6 +74,7 @@ class ProductReviewController extends Controller
      */
     public function destroy(ProductReview $review)
     {
+        $this->authorize('delete', $review); // add policy if needed
 
         $review->delete();
 

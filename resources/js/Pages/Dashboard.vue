@@ -312,46 +312,45 @@ function isAbsoluteHttpUrl(value) {
 async function saveProduct() {
   if (!validateProduct()) return;
   loading.value = true;
+
   try {
     const fd = new FormData();
-    fd.append('name', editingProduct.name);
+    fd.append('name', editingProduct.name ?? '');
     fd.append('category_id', editingProduct.category_id ?? '');
-    fd.append('price', editingProduct.price);
+    fd.append('price', String(editingProduct.price ?? ''));
     fd.append('short_description', editingProduct.short_description || '');
     fd.append('description', editingProduct.description || '');
     fd.append('is_best_seller', editingProduct.is_best_seller ? 1 : 0);
 
     if (productImageFile.value) {
       fd.append('image', productImageFile.value);
-    } else if (editingProduct.image) {
-      if (isAbsoluteHttpUrl(editingProduct.image)) {
-        fd.append('image_url', editingProduct.image);
-      } else {
-        fd.append('existing_image', editingProduct.image);
-      }
+    } else if (editingProduct.image && isAbsoluteHttpUrl(editingProduct.image)) {
+      fd.append('image_url', editingProduct.image);
     }
 
     if (editingProduct.id) {
       fd.append('_method', 'PUT');
-      const res = await apiPost(`/products/${editingProduct.id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+
+      // ✅ POST — KHÔNG set headers
+      const res = await apiPost(`/products/${editingProduct.id}`, fd);
       showNotice('Cập nhật sản phẩm thành công', 'success');
-      console.log('save response', res.data);
+      console.log(res.data);
     } else {
-      const res = await apiPost('/products', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const res = await apiPost('/products', fd);
       showNotice('Tạo sản phẩm mới thành công', 'success');
-      console.log('save response', res.data);
+      console.log(res.data);
     }
 
     await fetchProducts(productPage.value);
     closeProductForm();
   } catch (err) {
     console.error('saveProduct error', err.response?.data || err);
-    const msg = err.response?.data?.message || 'Lỗi khi lưu sản phẩm';
-    showNotice(msg, 'error');
+    showNotice(err.response?.data?.message || 'Lỗi khi lưu sản phẩm', 'error');
   } finally {
     loading.value = false;
   }
 }
+
 
 async function deleteProduct(slug) {
   if (!confirm('Bạn có chắc muốn xóa sản phẩm này?')) return;
