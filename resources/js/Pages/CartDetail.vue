@@ -36,7 +36,7 @@
                   <button class="qty-btn" @click="changeQty(item, item.quantity + 1)">+</button>
                 </div>
 
-                <div class="line-total">{{ formatPrice(item.price) }}</div>
+                <div class="line-total">{{ formatPrice((item.price || 0) * (item.quantity || 0)) }}</div>
 
                 <div class="row-actions">
                   <button class="btn-link" @click="removeItem(item)">Xóa</button>
@@ -47,25 +47,21 @@
 
           <aside class="cart-summary">
             <h2>Tóm tắt đơn hàng</h2>
-
             <div class="summary-row">
               <span>Số lượng</span>
-              <span>{{ totalQuantityValue }}</span>
+              <span>{{ totalQuantity }}</span>
             </div>
-
             <div class="summary-row">
               <span>Tạm tính</span>
-              <span class="summary-price">{{ formatPrice(cartSubtotalValue) }}</span>
+              <span class="summary-price">{{ formatPrice(cartSubtotal) }}</span>
             </div>
-
             <div class="summary-row">
               <span>Phí vận chuyển</span>
               <span class="muted">Tính khi thanh toán</span>
             </div>
-
             <div class="summary-row total">
               <span>Tổng</span>
-              <span class="summary-price">{{ formatPrice(cartSubtotalValue) }}</span>
+              <span class="summary-price">{{ formatPrice(cartSubtotal) }}</span>
             </div>
 
             <div class="summary-actions">
@@ -88,25 +84,17 @@
     <div v-if="showQr" class="qr-modal" @click.self="closeQr">
       <div class="qr-card">
         <h3>Quét mã MoMo để thanh toán</h3>
-
-        <p class="qr-sub">
-          Số: <strong>{{ momoReceiver }}</strong> ·
-          Số tiền:
-          <strong>{{ formatPrice(qrAmount || cartSubtotalValue) }}</strong>
-        </p>
-
+        <p class="qr-sub">Số: <strong>{{ momoReceiver }}</strong> · Số tiền: <strong>{{ formatPrice(qrAmount || cartSubtotal) }}</strong></p>
         <img v-if="qrImage" :src="qrImage" alt="MoMo QR" class="qr-img" />
         <p v-else class="qr-help">Đang tạo mã…</p>
-
         <p class="qr-help">Mở ứng dụng MoMo → Quét mã → Xác nhận chuyển tiền</p>
 
         <div class="qr-actions">
           <button class="btn-primary" @click="copyMomoUri">Sao chép liên kết</button>
           <button class="btn-secondary" @click="closeQr">Đóng</button>
         </div>
-
         <div class="qr-actions">
-          <button class="btn-primary" @click="confirmPayment">Xác nhận</button>
+            <button class="btn-primary" @click="confirmPayment">Xác nhận</button>
         </div>
       </div>
     </div>
@@ -125,46 +113,32 @@ export default {
       loading: true,
       placeholderImage: '/image/placeholder.png',
       receiptId: null,
-
-      // Totals that DO NOT auto-update
-      cartSubtotalValue: 0,
-      totalQuantityValue: 0,
-
       // QR related
       qrImage: null,
       showQr: false,
-      momoReceiver: '0907139274',
+      momoReceiver: '0907139274', 
       momoUri: null,
       qrAmount: null,
       note: '',
     };
   },
-
   computed: {
     user() {
-      return (this.$page && this.$page.props?.auth?.user)
+      return (this.$page && this.$page.props && this.$page.props.auth && this.$page.props.auth.user)
         ? this.$page.props.auth.user
         : null;
+    },
+    cartSubtotal() {
+      return this.cartData.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0);
+    },
+    totalQuantity() {
+      return this.cartData.reduce((sum, it) => sum + (it.quantity || 0), 0);
     }
   },
-
   methods: {
     formatPrice(value) {
       if (typeof value !== 'number') return value;
       return value.toLocaleString('vi-VN') + '₫';
-    },
-
-    // ✅ Recalculate totals ONLY when fetching cart (page reload)
-    updateTotals() {
-      this.cartSubtotalValue = this.cartData.reduce(
-        (sum, it) => sum + (it.price || 0) * (it.quantity || 0),
-        0
-      );
-
-      this.totalQuantityValue = this.cartData.reduce(
-        (sum, it) => sum + (it.quantity || 0),
-        0
-      );
     },
 
     async fetchCart() {
@@ -173,10 +147,8 @@ export default {
         return;
       }
       this.loading = true;
-
       try {
         const res = await axios.get('/receipts/active');
-
         if (res.data) {
           this.receiptId = res.data.id;
           this.cartData = (res.data.items || []).map(i => ({
@@ -187,10 +159,6 @@ export default {
         } else {
           this.cartData = [];
         }
-
-        // ✅ Only update totals here
-        //this.updateTotals();
-
       } catch (err) {
         console.error('fetchCart error', err);
         if (err.response?.status === 401) {
@@ -208,12 +176,10 @@ export default {
         window.location.href = '/login';
         return;
       }
-
       newQty = Math.max(1, parseInt(newQty || 1, 10));
-
       try {
         await axios.put(`/user/cart/${item.id}`, { quantity: newQty });
-        await this.fetchCart(); // ✅ totals update ONLY here
+        await this.fetchCart();
       } catch (err) {
         console.error('changeQty error', err);
         if (err.response?.status === 401) {
@@ -239,10 +205,9 @@ export default {
         return;
       }
       if (!confirm('Bạn có chắc muốn xóa sản phẩm này khỏi giỏ hàng?')) return;
-
       try {
         await axios.delete(`/user/cart/${item.id}`);
-        await this.fetchCart(); // ✅ totals update ONLY here
+        await this.fetchCart();
       } catch (err) {
         console.error('removeItem error', err);
         if (err.response?.status === 401) {
@@ -251,31 +216,35 @@ export default {
         }
       }
     },
-
     async goToCheckout() {
       if (!this.receiptId) {
         alert('Không tìm thấy hóa đơn để thanh toán');
         return;
       }
 
-      const subtotal = Math.max(0, Math.round(this.cartSubtotalValue));
+      // Validate subtotal
+      const subtotal = Math.max(0, Math.round(this.cartSubtotal));
       if (subtotal <= 0) {
         alert('Giỏ hàng trống hoặc tổng tiền không hợp lệ');
         return;
       }
 
+      // Try to get momoUri from backend (preferred)
       try {
         const res = await axios.post('/receipts/checkout-momo', { receipt_id: this.receiptId });
-        if (res.data?.momoUri) {
+        if (res.data && res.data.momoUri) {
           this.momoUri = res.data.momoUri;
           this.qrAmount = res.data.amount ?? subtotal;
-
+          // If backend returned receiver, update display
           try {
             const params = new URLSearchParams(this.momoUri.split('?')[1] || '');
             const r = params.get('receiver');
             if (r) this.momoReceiver = r;
-          } catch {}
+          } catch (e) {
+            // ignore parsing errors
+          }
         } else {
+          // fallback: build local momoUri using subtotal and configured receiver
           this.momoUri = this.buildLocalMomoUri(subtotal);
           this.qrAmount = subtotal;
         }
@@ -285,11 +254,13 @@ export default {
         this.qrAmount = subtotal;
       }
 
+      // Validate momoUri
       if (!this.momoUri) {
         alert('Không thể tạo liên kết thanh toán MoMo');
         return;
       }
 
+      // Generate QR
       try {
         this.qrImage = await QRCode.toDataURL(this.momoUri, {
           width: 320,
@@ -297,32 +268,31 @@ export default {
           errorCorrectionLevel: 'M',
         });
         this.showQr = true;
-        this.note = `Quét mã bằng ứng dụng MoMo để chuyển ${this.formatPrice(this.qrAmount)} vào số ${this.momoReceiver}.`;
+        this.note = `Quét mã bằng ứng dụng MoMo để chuyển ${this.formatPrice(this.qrAmount)} vào số ${this.momoReceiver}. Người gửi cần xác nhận giao dịch trong app.`;
       } catch (err) {
         console.error('QR generation error', err);
         alert('Không thể tạo mã QR. Vui lòng thử lại.');
       }
     },
-
     async confirmPayment() {
-      if (!this.receiptId) {
-        alert('Không tìm thấy hóa đơn để thanh toán');
-        return;
-      }
-      try {
-        await axios.post('/receipts/checkout', { receipt_id: this.receiptId });
-        this.closeQr();
-        await this.fetchCart();
-        alert('Đã xác nhận thanh toán và tạo hóa đơn mới');
-      } catch (err) {
-        console.error('checkout error', err);
-        alert('Thanh toán thất bại');
-      }
-    },
-
+        if (!this.receiptId) {
+          alert('Không tìm thấy hóa đơn để thanh toán');
+          return;
+        }
+        try {
+          await axios.post('/receipts/checkout', { receipt_id: this.receiptId });
+          this.closeQr();
+          await this.fetchCart();
+          alert('Đã xác nhận thanh toán và tạo hóa đơn mới');
+        } catch (err) {
+          console.error('checkout error', err);
+          alert('Thanh toán thất bại');
+        }
+      },
     buildLocalMomoUri(amount) {
+      // Validate receiver
       if (!/^\d{9,11}$/.test(this.momoReceiver)) {
-        alert('Số điện thoại MoMo không hợp lệ.');
+        alert('Số điện thoại MoMo không hợp lệ. Vui lòng kiểm tra cấu hình.');
         return null;
       }
       const comment = `Thanh toán hóa đơn #${this.receiptId}`;
@@ -348,18 +318,19 @@ export default {
         alert('Không có liên kết để sao chép');
         return;
       }
-      navigator.clipboard?.writeText(this.momoUri)
-        .then(() => alert('Đã sao chép liên kết MoMo'))
-        .catch(() => alert('Không thể sao chép.'));
+      navigator.clipboard?.writeText(this.momoUri).then(() => {
+        alert('Đã sao chép liên kết MoMo vào clipboard');
+      }).catch(() => {
+        alert('Không thể sao chép. Vui lòng sao chép thủ công: ' + this.momoUri);
+      });
     },
 
     onImageError(event) {
       event.target.src = this.placeholderImage;
     }
   },
-
   mounted() {
-    this.fetchCart(); // ✅ totals update ONLY here
+    this.fetchCart();
   }
 };
 </script>
