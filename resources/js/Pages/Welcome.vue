@@ -10,6 +10,7 @@
       </div>
 
       <div class="hanh-dong-nguoi-dung">
+        <!-- Authentication-aware navigation -->
         <template v-if="!user">
           <a href="/login" class="dang-nhap" data-inertia="false">Đăng nhập</a>
           <a href="/register" class="dang-ky" data-inertia="false">Đăng ký</a>
@@ -319,7 +320,7 @@
     <footer class="footer">
       <div class="footer-content">
         <div class="store-info">
-          <h1 style="color: white; font-size: 30px;"><strong>FASHION STYLE STORE</strong></h1>
+          <h1 style="color: white; font-size: 30px;"><strong>FASHION STYLE STOREE</strong></h1>
           <p><strong>Địa chỉ:</strong> 180 Cao Lỗ, Phường 4, Quận 8, TP.HCM</p>
           <p><strong>Email:</strong> dh52201275@student.stu.edu.vn</p>
           <p><strong>Điện thoại:</strong> (028) 38 505 520</p>
