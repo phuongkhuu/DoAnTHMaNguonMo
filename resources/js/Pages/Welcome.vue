@@ -170,7 +170,44 @@
           </div>
         </div>
         <!-- 🔽 Reviews at the bottom -->
-        
+        <div class="reviews">
+          <h2>Đánh giá sản phẩm</h2>
+          <!-- Average rating -->
+          <p v-if="productReviews.length">
+            Trung bình: <span class="stars">{{ renderStars(averageRating) }}</span>
+            ({{ productReviews.length }} lượt)
+          </p>
+          <p v-else><span style="font-style: italic ;">Chưa có đánh giá nào</span></p>
+          <!-- Review list -->
+          <ul class="review-list">
+            <li v-for="r in productReviews" :key="r.id" class="review-item">
+              <strong>{{ r.user.name }}</strong> —
+              <span class="stars">{{ renderStars(r.rating) }}</span>
+              <p>{{ r.comment }}</p>
+            </li>
+          </ul>
+          <!-- Review form -->
+          <div v-if="user" class="review-form">
+            <h3>Viết đánh giá của bạn</h3>
+            <form @submit.prevent="submitReview">
+                <label>Điểm đánh giá:</label>
+                <div class="star-selector">
+                  <span
+                    v-for="star in 5"
+                    :key="star"
+                    class="star"
+                    :class="{ active: star <= newReview.rating }"
+                    @click="newReview.rating = star"
+                  >
+                    ★
+                  </span>
+                </div>
+                <label>Bình luận:</label>
+                <textarea v-model="newReview.comment"></textarea>
+                <button type="submit">Gửi</button>
+              </form>
+          </div>
+        </div>
       </section>
 
 
