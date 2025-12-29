@@ -88,7 +88,7 @@
     <main>
       <!-- Best Sellers (home) -->
       <section v-if="currentView === 'home'" class="best-sellers">
-        <h2>Sản phẩm bán chạy</h2>
+        <h2>Tân Khải Thanh</h2>
         <div class="list">
           <div
             v-for="product in bestSellers"
