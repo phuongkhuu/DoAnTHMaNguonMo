@@ -2,7 +2,7 @@
   <div>
     <!-- Header -->
     <header class="thanh-bar">
-      <div class="logo"><a href="/">FASHION STYLE STORE</a></div>
+      <div class="logo"><a href="/">FASHION STYLE STORE (Khưu Ngọc Thanh Phương)</a></div>
 
       <div class="thanh-tim-kiem">
         <input v-model="searchQuery" @keyup.enter="search" type="text" placeholder="Tìm kiếm hoa theo tên..." />
