@@ -43,6 +43,7 @@ Route::get('/dashboard', function () {
     $admins = [
         'thanhphuongkhuu@gmail.com',
         'anotheradmin@example.com',
+        'chodichomoive@gmail.com',
     ];
 
     if (!$user || !in_array(strtolower($user->email), array_map('strtolower', $admins))) {
